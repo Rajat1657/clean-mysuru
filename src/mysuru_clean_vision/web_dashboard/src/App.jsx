@@ -7,7 +7,6 @@ import {
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 
-// Custom Leaflet marker icons
 const redIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
@@ -27,18 +26,16 @@ const orangeIcon = new L.Icon({
 });
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('live'); // 'live' | 'detections'
+  const [activeTab, setActiveTab] = useState('live');
   const [data, setData] = useState({ live_feed: {}, incidents: [] });
   const [loading, setLoading] = useState(true);
 
-  // Detections Filters
   const [selectedWard, setSelectedWard] = useState('All');
   const [minUrgency, setMinUrgency] = useState(0);
   const [verifFilter, setVerifFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch live alerts data from local API endpoint
   const fetchData = async () => {
     try {
       const res = await fetch('http://localhost:5000/api/alerts');
@@ -47,7 +44,7 @@ export default function App() {
         setData(json);
       }
     } catch (e) {
-      // Fallback mock payload if server is connecting
+      // connecting
     } finally {
       setLoading(false);
     }
@@ -59,7 +56,6 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Save updated verification / status to backend
   const updateIncident = async (incidentId, newVerif, newStatus, newNotes) => {
     const updatedIncidents = data.incidents.map(inc => {
       if (inc.incident_id === incidentId) {
@@ -90,7 +86,6 @@ export default function App() {
   const liveFeed = data.live_feed || {};
   const incidents = data.incidents || [];
 
-  // Filtered incidents logic
   const filteredIncidents = incidents.filter(inc => {
     if (selectedWard !== 'All' && inc.jurisdiction !== selectedWard) return false;
     if ((inc.urgency_score || 0) < minUrgency) return false;
@@ -108,9 +103,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#090D16] text-slate-100 flex flex-col font-sans">
       
-      {/* ---------------------------------------------------- */}
       {/* HEADER NAVBAR */}
-      {/* ---------------------------------------------------- */}
       <header className="sticky top-0 z-50 glass-panel border-b border-slate-800/80 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-xl bg-gradient-to-tr from-cyan-600 to-blue-600 shadow-lg shadow-cyan-500/20">
@@ -118,9 +111,8 @@ export default function App() {
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-              MYSURU CLEAN VISION <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">EDGE AI OPS</span>
+              Clean Mysuru
             </h1>
-            <p className="text-xs text-slate-400">Sub-Problem 5: Autonomous Anomaly Detection & Dynamic Routing</p>
           </div>
         </div>
 
@@ -166,9 +158,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* ---------------------------------------------------- */}
       {/* MAIN CONTAINER */}
-      {/* ---------------------------------------------------- */}
       <main className="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
 
         {/* TAB 1: LIVE OPERATIONS */}

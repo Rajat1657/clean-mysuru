@@ -7,13 +7,12 @@ import folium
 from streamlit_folium import st_folium
 
 st.set_page_config(
-    page_title="Mysuru Clean Vision | Edge AI Ops",
+    page_title="Clean Mysuru",
     page_icon="🏙️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Neumorphic Dark Theme CSS
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
@@ -35,15 +34,6 @@ st.markdown("""
                     -7px -7px 15px #1e2330;
         margin-bottom: 20px;
         border: 1px solid rgba(255, 255, 255, 0.04);
-    }
-
-    .neu-inset {
-        background: #101219;
-        border-radius: 12px;
-        padding: 15px;
-        box-shadow: inset 4px 4px 8px #08090d, 
-                    inset -4px -4px 8px #181b25;
-        margin-bottom: 12px;
     }
 
     .status-badge-night {
@@ -143,26 +133,18 @@ data = load_data()
 live_feed = data.get('live_feed', {})
 incidents = data.get('incidents', [])
 
-# Header
 st.markdown("""
 <div class="neu-card">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <h2 style="margin:0; color:#F8FAFC;">🏙️ Mysuru Clean Vision : Autonomous Anomaly Operations</h2>
-            <p style="margin:4px 0 0 0; color:#94A3B8; font-size:0.9rem;">
-                Sub-Problem 5: Detection Without Reporting | Edge AI & Municipal Action Console
-            </p>
+            <h2 style="margin:0; color:#F8FAFC;">Clean Mysuru</h2>
         </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# Main Navigation Tabs
 tab_live, tab_detections = st.tabs(["📹 Live Feed & Operations", "🚨 Detections & Verification Console"])
 
-# ----------------------------------------------------
-# TAB 1: LIVE FEED & OPERATIONS CONSOLE
-# ----------------------------------------------------
 with tab_live:
     col_map, col_console = st.columns([6, 6])
 
@@ -256,13 +238,9 @@ with tab_live:
 
     render_live_camera_feed()
 
-# ----------------------------------------------------
-# TAB 2: DETECTIONS & VERIFICATION CONSOLE
-# ----------------------------------------------------
 with tab_detections:
     st.subheader("🚨 Municipal Detections & Incident Verification Console")
 
-    # Filters
     f1, f2, f3, f4 = st.columns(4)
 
     with f1:
@@ -278,7 +256,6 @@ with tab_detections:
     with f4:
         prog_filter = st.selectbox("Workflow Status", ["All", "Detected", "In Progress (Crew Dispatched)", "Resolved (Cleaned)"])
 
-    # Filter incidents
     filtered = incidents
     if sel_ward != "All Jurisdictions":
         filtered = [i for i in filtered if i.get('jurisdiction') == sel_ward]
@@ -320,7 +297,6 @@ with tab_detections:
             </div>
             """, unsafe_allow_html=True)
 
-            # 3 Photo Proofs Side-by-Side
             p1, p2, p3 = st.columns(3)
             
             raw_b64 = inc.get('proof_raw_b64') or inc.get('raw_frame_b64')
@@ -341,7 +317,6 @@ with tab_detections:
                 if bbox_b64:
                     st.image(base64.b64decode(bbox_b64), use_container_width=True)
 
-            # Official Verification & Progress Actions
             st.markdown("**Official Action & Verification Panel:**")
             act_col1, act_col2 = st.columns(2)
 
@@ -359,7 +334,6 @@ with tab_detections:
             notes = st.text_input("Officer Dispatch / Audit Notes", value=inc.get('officer_notes', ''), key=f"notes_{iid}_{idx}")
 
             if (new_v != v_status) or (new_s != inc.get('status')) or (notes != inc.get('officer_notes')):
-                # Update incident record in data
                 inc['verification_status'] = new_v
                 inc['status'] = new_s
                 inc['officer_notes'] = notes
