@@ -27,32 +27,56 @@ class DetectionNode(Node):
         self.router = JurisdictionRouter()
         self.alerts_file = '/tmp/civic_alerts.json'
 
-        # Auto-detect real-time GPS location of host machine (e.g. Chennai, Mysuru, Bengaluru)
         self.current_lat, self.current_lon = self.router.get_current_gps()
         self.current_authority = self.router.get_authority(self.current_lat, self.current_lon)
         self.get_logger().info(f"Live GPS Location: ({self.current_lat}, {self.current_lon}) | Jurisdiction: {self.current_authority}")
 
-        # Active incident cache for spatial-temporal deduplication
         self.active_incidents = {}
-        self.dedup_window_sec = 15.0
+        self.dedup_window_sec = 20.0
 
         if not os.path.exists(self.alerts_file):
             with open(self.alerts_file, 'w') as f:
-                json.dump([], f)
+                json.dump({'live_feed': {}, 'incidents': []}, f)
+
+    def load_existing_user_modifications(self):
+        """Preserve officer verification status and progress edits from UI"""
+        user_mods = {}
+        if os.path.exists(self.alerts_file):
+            try:
+                with open(self.alerts_file, 'r') as f:
+                    data = json.load(f)
+                    for inc in data.get('incidents', []):
+                        iid = inc.get('incident_id')
+                        if iid:
+                            user_mods[iid] = {
+                                'verification_status': inc.get('verification_status', 'Pending Verification'),
+                                'status': inc.get('status', 'Detected'),
+                                'officer_notes': inc.get('officer_notes', '')
+                            }
+            except Exception:
+                pass
+        return user_mods
 
     def image_callback(self, msg):
         frame = np.frombuffer(msg.data, dtype=np.uint8).reshape((msg.height, msg.width, 3))
 
-        # Process frame with adaptive CLAHE + YOLO vision engine
-        processed_frame, detections, waste_volume, is_night_mode, brightness = self.detector.process_frame(frame)
+        # Process frame with 5-Stage Retinex + YOLO vision engine
+        annotated_frame, detections, waste_volume, is_night_mode, brightness = self.detector.process_frame(frame)
 
         current_time_str = time.strftime('%H:%M:%S')
         now_ts = time.time()
 
+        # Generate 3 distinct photo proofs
+        # Proof 1: Raw Dashcam Frame
         _, raw_encoded = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
-        _, proc_encoded = cv2.imencode('.jpg', processed_frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
+        # Proof 2: 5-Stage Retinex Enhanced Frame (Clean)
+        # Proof 3: Bounding Box AI Detection Overlay
+        _, ann_encoded = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
+        
         raw_b64 = base64.b64encode(raw_encoded).decode('utf-8')
-        proc_b64 = base64.b64encode(proc_encoded).decode('utf-8')
+        ann_b64 = base64.b64encode(ann_encoded).decode('utf-8')
+
+        user_mods = self.load_existing_user_modifications()
 
         alert_triggered = len(detections) > 0 and waste_volume > 0
 
@@ -68,12 +92,12 @@ class DetectionNode(Node):
                 existing_incident['occurrences'] += 1
                 existing_incident['waste_volume'] = max(existing_incident['waste_volume'], float(waste_volume))
                 existing_incident['urgency_score'] = max(existing_incident['urgency_score'], urgency_score)
-                existing_incident['raw_frame_b64'] = raw_b64
-                existing_incident['enhanced_frame_b64'] = proc_b64
-                existing_incident['is_night_mode'] = is_night_mode
-                existing_incident['brightness'] = brightness
+                existing_incident['proof_raw_b64'] = raw_b64
+                existing_incident['proof_bbox_b64'] = ann_b64
             else:
                 incident_id = f"INC-{int(now_ts) % 10000:04d}"
+                mods = user_mods.get(incident_id, {})
+
                 new_incident = {
                     'incident_id': incident_id,
                     'first_detected': current_time_str,
@@ -87,12 +111,13 @@ class DetectionNode(Node):
                     'detections': detections,
                     'lat': self.current_lat,
                     'lon': self.current_lon,
-                    'raw_frame_b64': raw_b64,
-                    'enhanced_frame_b64': proc_b64,
+                    'proof_raw_b64': raw_b64,
+                    'proof_bbox_b64': ann_b64,
                     'is_night_mode': is_night_mode,
                     'brightness': brightness,
-                    'alert_triggered': True,
-                    'status': 'Active'
+                    'verification_status': mods.get('verification_status', 'Pending Verification'),
+                    'status': mods.get('status', 'Detected'),
+                    'officer_notes': mods.get('officer_notes', '')
                 }
                 self.active_incidents[dedup_key] = new_incident
 
@@ -105,7 +130,15 @@ class DetectionNode(Node):
                     'waste_volume': waste_volume
                 })
                 self.alert_publisher.publish(alert_msg)
-                self.get_logger().info(f"[NEW INCIDENT DETECTED] ID: {incident_id} | Urgency: {urgency_score} | Authority: {self.current_authority}")
+                self.get_logger().info(f"[NEW INCIDENT] ID: {incident_id} | Urgency: {urgency_score} | Authority: {self.current_authority}")
+
+        # Re-apply any existing user modifications to active incidents
+        for inc in self.active_incidents.values():
+            iid = inc['incident_id']
+            if iid in user_mods:
+                inc['verification_status'] = user_mods[iid]['verification_status']
+                inc['status'] = user_mods[iid]['status']
+                inc['officer_notes'] = user_mods[iid]['officer_notes']
 
         incidents_list = list(self.active_incidents.values())
         incidents_list.sort(key=lambda x: x['urgency_score'], reverse=True)
@@ -114,7 +147,7 @@ class DetectionNode(Node):
             'live_feed': {
                 'timestamp': current_time_str,
                 'raw_frame_b64': raw_b64,
-                'enhanced_frame_b64': proc_b64,
+                'enhanced_frame_b64': ann_b64,
                 'is_night_mode': is_night_mode,
                 'brightness': brightness,
                 'detections_count': len(detections),
