@@ -1,10 +1,10 @@
 import os
 import json
+import socket
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 class AlertAPIHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        # Enable CORS
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
@@ -24,7 +24,6 @@ class AlertAPIHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(data).encode('utf-8'))
 
     def do_POST(self):
-        # Handle officer verification / status updates
         content_length = int(self.headers.get('Content-Length', 0))
         post_data = self.rfile.read(content_length)
         self.send_response(200)
@@ -48,12 +47,23 @@ class AlertAPIHandler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
 
+class ReuseHTTPServer(HTTPServer):
+    def server_bind(self):
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        super().server_bind()
+
 def main():
-    port = 5000
+    port = int(os.environ.get('PORT', 5000))
     server_address = ('', port)
-    httpd = HTTPServer(server_address, AlertAPIHandler)
-    print(f"[AlertAPIHandler] Serving live alerts API at http://localhost:{port}/api/alerts")
-    httpd.serve_forever()
+    try:
+        httpd = ReuseHTTPServer(server_address, AlertAPIHandler)
+        print(f"[AlertAPIHandler] Serving live alerts API at http://localhost:{port}/api/alerts")
+        httpd.serve_forever()
+    except OSError as e:
+        if e.errno == 98:
+            print(f"[AlertAPIHandler] Port {port} is already active and serving live alerts!")
+        else:
+            raise e
 
 if __name__ == '__main__':
     main()
