@@ -6,26 +6,15 @@ from collections import deque
 from ultralytics import YOLO
 
 class LowLightEnhancer:
-    """
-    5-Stage Autonomous Low-Light Vision Pipeline:
-    1. ISP / Denoising + Auto White Balance + Black Level Adjustment
-    2. Retinex / Zero-DCE++ Iterative Light Curve Enhancement
-    3. Temporal Multi-Frame Denoising (Sliding Ring Buffer across 3-5 frames)
-    4. Local Contrast & Edge Detail Restoration (Unsharp Masking)
-    5. Dual-Stream Output Dispatch (Display & YOLO Vision Model)
-    """
     def __init__(self, buffer_size=5):
         self.frame_buffer = deque(maxlen=buffer_size)
 
     def stage1_isp_white_balance(self, frame):
-        """Stage 1: ISP Denoise, Black Level Subtraction, Gray-World Auto White Balance"""
         if frame is None or frame.size == 0:
             return frame
 
-        # Black level subtraction (remove sensor dark current noise)
         frame_bl = np.clip(frame.astype(np.int16) - 4, 0, 255).astype(np.uint8)
 
-        # Gray-World Auto White Balance
         b, g, r = cv2.split(frame_bl.astype(np.float32))
         b_avg, g_avg, r_avg = np.mean(b), np.mean(g), np.mean(r)
 
@@ -39,32 +28,23 @@ class LowLightEnhancer:
         else:
             frame_wb = frame_bl
 
-        # Mild ISP bilateral denoising
         denoised = cv2.bilateralFilter(frame_wb, d=3, sigmaColor=15, sigmaSpace=15)
         return denoised
 
     def stage2_zero_dce_retinex(self, frame):
-        """Stage 2: Retinex / Zero-DCE++ Iterative Curve Enhancement"""
-        # Normalize to [0, 1]
         img_norm = frame.astype(np.float32) / 255.0
-        
-        # Zero-DCE quadratic parameter curve (alpha = 0.35)
         alpha = 0.35
         x = img_norm
-        for _ in range(3): # 3 iterations of physics-based light curve expansion
+        for _ in range(3):
             x = x + alpha * x * (1.0 - x)
-
         enhanced = np.clip(x * 255.0, 0, 255).astype(np.uint8)
         return enhanced
 
     def stage3_temporal_denoise(self, frame):
-        """Stage 3: Temporal Denoising across last 3-5 frames buffer"""
         self.frame_buffer.append(frame.astype(np.float32))
-        
         if len(self.frame_buffer) == 1:
             return frame
 
-        # Temporal weighted average (exponential decay weights)
         weights = np.exp(np.linspace(-0.8, 0, len(self.frame_buffer)))
         weights /= np.sum(weights)
 
@@ -75,7 +55,6 @@ class LowLightEnhancer:
         return np.clip(temp_avg, 0, 255).astype(np.uint8)
 
     def stage4_detail_restoration(self, frame):
-        """Stage 4: Local Contrast & Unsharp Edge Restoration"""
         blurred = cv2.GaussianBlur(frame, (3, 3), 1.0)
         detail = cv2.addWeighted(frame, 1.20, blurred, -0.20, 0)
         return detail
@@ -84,16 +63,13 @@ class LowLightEnhancer:
         if frame is None or frame.size == 0:
             return frame, False, 0.0
 
-        # Check mean luminance
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         brightness = float(np.mean(gray))
         is_night = brightness < 75.0
 
         if not is_night:
-            # Clear daylight: return exact raw frame
             return frame.copy(), False, round(brightness, 1)
 
-        # Execute 5-Stage Low-Light Pipeline
         s1 = self.stage1_isp_white_balance(frame)
         s2 = self.stage2_zero_dce_retinex(s1)
         s3 = self.stage3_temporal_denoise(s2)
@@ -121,17 +97,16 @@ class WasteDetector:
 
     def process_frame(self, frame):
         if frame is None or frame.size == 0:
-            return frame, [], 0.0, False, 0.0
+            return frame, frame, frame, [], 0.0, False, 0.0
 
-        # 5-Stage Retinex / Zero-DCE Temporal Enhancement
-        processed_frame, is_night_mode, brightness = self.enhancer.enhance(frame)
-        annotated_frame = processed_frame.copy()
+        # 5-Stage Retinex Enhanced Frame (Clean, without bounding boxes)
+        enhanced_clean_frame, is_night_mode, brightness = self.enhancer.enhance(frame)
+        annotated_frame = enhanced_clean_frame.copy()
         
         h, w = annotated_frame.shape[:2]
         total_area = float(h * w)
 
-        # High-confidence YOLOv8 Medium inference
-        results = self.model(processed_frame, device=self.device, conf=0.45, verbose=False)[0]
+        results = self.model(enhanced_clean_frame, device=self.device, conf=0.45, verbose=False)[0]
 
         detections = []
         waste_box_area = 0.0
@@ -148,15 +123,15 @@ class WasteDetector:
 
                 if cls_name in self.person_classes:
                     category = 'PERSON'
-                    color = (255, 255, 0) # Cyan
+                    color = (255, 255, 0)
                     label_str = f"PERSON {conf:.2f}"
                 elif cls_name in self.vehicle_classes:
                     category = 'VEHICLE'
-                    color = (255, 0, 255) # Magenta
+                    color = (255, 0, 255)
                     label_str = f"VEHICLE: {cls_name.upper()} {conf:.2f}"
                 elif cls_name in self.waste_classes:
                     category = 'ILLEGAL DUMPING'
-                    color = (0, 230, 118) # Neon green
+                    color = (0, 230, 118)
                     label_str = f"ILLEGAL DUMPING: {cls_name.upper()} {conf:.2f}"
                     waste_box_area += box_area
                     detections.append({
@@ -168,13 +143,13 @@ class WasteDetector:
                 else:
                     continue
 
+                # Draw bounding box ONLY on annotated_frame
                 cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
                 cv2.putText(annotated_frame, label_str, (x1, max(y1 - 10, 20)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
 
-        # Synthetic night drive debris block fallback ONLY when in pitch dark synthetic night stream (brightness < 20)
         if len(detections) == 0 and is_night_mode and brightness < 20.0:
-            gray = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2GRAY)
+            gray = cv2.cvtColor(enhanced_clean_frame, cv2.COLOR_BGR2GRAY)
             mask = cv2.inRange(gray, 30, 85)
             roi_mask = np.zeros_like(mask)
             roi_mask[int(h * 0.55):int(h * 0.85), int(w * 0.3):int(w * 0.75)] = 255
@@ -198,4 +173,4 @@ class WasteDetector:
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
 
         waste_volume = round(waste_box_area / total_area, 4)
-        return annotated_frame, detections, waste_volume, is_night_mode, brightness
+        return frame, enhanced_clean_frame, annotated_frame, detections, waste_volume, is_night_mode, brightness

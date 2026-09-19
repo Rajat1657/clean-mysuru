@@ -379,6 +379,10 @@ export default function App() {
                   const vStatus = inc.verification_status || 'Pending Verification';
                   const status = inc.status || 'Detected';
 
+                  const proof1 = inc.proof_raw_b64 || inc.raw_frame_b64;
+                  const proof2 = inc.proof_enhanced_b64 || inc.enhanced_frame_b64;
+                  const proof3 = inc.proof_bbox_b64 || inc.enhanced_frame_b64;
+
                   return (
                     <div key={idx} className="glass-panel p-6 rounded-2xl space-y-5">
                       
@@ -418,34 +422,34 @@ export default function App() {
                         <div><b>Debris Volume Ratio:</b> {(inc.waste_volume * 100).toFixed(1)}%</div>
                       </div>
 
-                      {/* 3 Photo Proofs Gallery */}
+                      {/* 3 Photo Proofs Gallery (Locked from exact detection moment) */}
                       <div className="space-y-2">
-                        <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Multi-Frame Photo Proofs (2-3 Captures)</span>
+                        <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Multi-Frame Photo Proofs (Locked Detection Moment)</span>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                           
                           <div className="space-y-1.5">
-                            <span className="text-[11px] text-slate-400">Proof 1: Raw Dashcam Capture</span>
+                            <span className="text-[11px] text-slate-400 font-semibold">Proof 1: Raw Dashcam Capture (No Box)</span>
                             <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800">
-                              {inc.proof_raw_b64 || inc.raw_frame_b64 ? (
-                                <img src={`data:image/jpeg;base64,${inc.proof_raw_b64 || inc.raw_frame_b64}`} alt="Proof 1" className="w-full h-full object-cover" />
+                              {proof1 ? (
+                                <img src={`data:image/jpeg;base64,${proof1}`} alt="Proof 1 Raw" className="w-full h-full object-cover" />
                               ) : <span className="text-xs text-slate-600 p-4 block">No image</span>}
                             </div>
                           </div>
 
                           <div className="space-y-1.5">
-                            <span className="text-[11px] text-slate-400">Proof 2: 5-Stage Retinex Enhanced View</span>
+                            <span className="text-[11px] text-slate-400 font-semibold">Proof 2: 5-Stage Retinex View (No Box)</span>
                             <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800">
-                              {inc.proof_bbox_b64 || inc.enhanced_frame_b64 ? (
-                                <img src={`data:image/jpeg;base64,${inc.proof_bbox_b64 || inc.enhanced_frame_b64}`} alt="Proof 2" className="w-full h-full object-cover" />
+                              {proof2 ? (
+                                <img src={`data:image/jpeg;base64,${proof2}`} alt="Proof 2 Enhanced Clean" className="w-full h-full object-cover" />
                               ) : <span className="text-xs text-slate-600 p-4 block">No image</span>}
                             </div>
                           </div>
 
                           <div className="space-y-1.5">
-                            <span className="text-[11px] text-slate-400">Proof 3: YOLO Bounding Box Overlay</span>
+                            <span className="text-[11px] text-slate-400 font-semibold">Proof 3: YOLO Bounding Box Overlay</span>
                             <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800">
-                              {inc.proof_bbox_b64 || inc.enhanced_frame_b64 ? (
-                                <img src={`data:image/jpeg;base64,${inc.proof_bbox_b64 || inc.enhanced_frame_b64}`} alt="Proof 3" className="w-full h-full object-cover" />
+                              {proof3 ? (
+                                <img src={`data:image/jpeg;base64,${proof3}`} alt="Proof 3 Bounding Box" className="w-full h-full object-cover" />
                               ) : <span className="text-xs text-slate-600 p-4 block">No image</span>}
                             </div>
                           </div>
