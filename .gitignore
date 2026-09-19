@@ -1,0 +1,9 @@
+build/
+install/
+log/
+*.pt
+*.mp4
+/tmp/
+__pycache__/
+*.pyc
+.colcon/

@@ -1,0 +1,62 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "authority": "Mysuru City Corporation - Ward 12",
+        "code": "MCC-W12"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [76.630, 12.290],
+            [76.645, 12.290],
+            [76.645, 12.302],
+            [76.630, 12.302],
+            [76.630, 12.290]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "authority": "Kadakola Gram Panchayat",
+        "code": "KGP-ZONE1"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [76.640, 12.240],
+            [76.660, 12.240],
+            [76.660, 12.260],
+            [76.640, 12.260],
+            [76.640, 12.240]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "authority": "Hootagalli City Municipal Council",
+        "code": "HCMC-WEST"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [76.590, 12.320],
+            [76.610, 12.320],
+            [76.610, 12.340],
+            [76.590, 12.340],
+            [76.590, 12.320]
+          ]
+        ]
+      }
+    }
+  ]
+}
