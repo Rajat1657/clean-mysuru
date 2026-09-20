@@ -1,9 +1,27 @@
+# Large binary weights & video samples
+*.pt
+*.mp4
+
+# Python & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Build & Installation Directories
 build/
 install/
 log/
-*.pt
-*.mp4
-/tmp/
-__pycache__/
-*.pyc
-.colcon/
+dist/
+node_modules/
+
+# Temporary alert files & logs
+/tmp/civic_alerts.json
+*.log
+
+# Environment & IDE
+.env
+.vscode/
+.idea/
+*.swp
+.DS_Store
