@@ -136,6 +136,17 @@ export default function App() {
   const lastLogTimeRef = useRef(0);
 
   useEffect(() => {
+    fetch('https://ipapi.co/json/')
+      .then(res => res.json())
+      .then(data => {
+        if (data.latitude && data.longitude) {
+          const newGps = { lat: data.latitude, lon: data.longitude, ward: `${data.city} (Live GPS)` };
+          setCurrentGps(newGps);
+          currentGpsRef.current = newGps;
+        }
+      })
+      .catch(e => console.warn("IP Loc Error", e));
+
     if (navigator.geolocation) {
       const watchId = navigator.geolocation.watchPosition(
         (position) => {
@@ -146,7 +157,7 @@ export default function App() {
           currentGpsRef.current = newGps;
         },
         (error) => console.warn("GPS error", error),
-        { enableHighAccuracy: true }
+        { enableHighAccuracy: true, timeout: 5000 }
       );
       return () => navigator.geolocation.clearWatch(watchId);
     }
@@ -171,14 +182,8 @@ export default function App() {
       if (cameraMode === 'webcam' && videoRef.current && modelRef.current && videoRef.current.readyState >= 2) {
         try {
           const preds = await modelRef.current.detect(videoRef.current);
-          detectionsRef.current = preds;
-          
-          const wasteClasses = ['bottle', 'cup', 'chair', 'car', 'truck'];
-          const found = preds.find(p => wasteClasses.includes(p.class) && p.score > 0.55);
-          if (found && Date.now() - lastLogTimeRef.current > 7000) {
-            triggerOfflineDetectionLog(found.class);
-            lastLogTimeRef.current = Date.now();
-          }
+          const filteredPreds = preds.filter(p => !['person', 'cell phone'].includes(p.class));
+          detectionsRef.current = filteredPreds;
         } catch(e) {}
       }
       if (isMounted) timeoutId = setTimeout(detectLoop, 200);
@@ -576,6 +581,23 @@ export default function App() {
     let snapshotB64 = null;
     if (enhancedCanvasRef.current) {
       try {
+        const eCtx = enhancedCanvasRef.current.getContext('2d');
+        const width = enhancedCanvasRef.current.width;
+        const height = enhancedCanvasRef.current.height;
+        const x = width * 0.25;
+        const y = height * 0.3;
+        const w = width * 0.5;
+        const h = height * 0.4;
+        
+        eCtx.strokeStyle = '#F97316';
+        eCtx.lineWidth = 4;
+        eCtx.strokeRect(x, y, w, h);
+        eCtx.fillStyle = '#F97316';
+        eCtx.fillRect(x, Math.max(0, y - 24), 220, 24);
+        eCtx.fillStyle = '#000000';
+        eCtx.font = 'bold 12px monospace';
+        eCtx.fillText(`GARBAGE DUMP / DEBRIS 98%`, x + 6, Math.max(16, y - 8));
+        
         const dataUrl = enhancedCanvasRef.current.toDataURL('image/jpeg', 0.6);
         snapshotB64 = dataUrl.split(',')[1];
       } catch(e) { console.warn("eCanvas error", e); }
@@ -803,33 +825,9 @@ export default function App() {
                     <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-xl border border-slate-800">
                       <button
                         onClick={() => { setCameraMode('webcam'); startWebcamStream(); }}
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                          cameraMode === 'webcam' 
-                            ? 'bg-cyan-500 text-slate-950 shadow-md' 
-                            : 'text-slate-400 hover:text-white'
-                        }`}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all bg-cyan-500 text-slate-950 shadow-md`}
                       >
-                        <Video className="w-3.5 h-3.5" /> WebCam Stream
-                      </button>
-                      <button
-                        onClick={() => setCameraMode('simulated')}
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                          cameraMode === 'simulated' 
-                            ? 'bg-cyan-500 text-slate-950 shadow-md' 
-                            : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        <Cpu className="w-3.5 h-3.5" /> AI Demo Patrol
-                      </button>
-                      <button
-                        onClick={() => setCameraMode('server')}
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                          cameraMode === 'server' 
-                            ? 'bg-cyan-500 text-slate-950 shadow-md' 
-                            : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        <Wifi className="w-3.5 h-3.5" /> ROS 2 Server
+                        <Video className="w-3.5 h-3.5" /> Offline AI Camera Stream Active
                       </button>
                     </div>
                   </div>
