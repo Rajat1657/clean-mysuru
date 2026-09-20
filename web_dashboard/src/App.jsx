@@ -193,29 +193,27 @@ export default function App() {
   };
 
   // WebCam Setup
-  useEffect(() => {
-    let stream = null;
-    if (cameraMode === 'webcam') {
-      navigator.mediaDevices?.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 } } })
+  const startWebcamStream = () => {
+    if (navigator.mediaDevices?.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ video: true })
         .then((s) => {
-          stream = s;
           if (videoRef.current) {
             videoRef.current.srcObject = s;
             videoRef.current.play().catch(() => {});
           }
         })
         .catch((err) => {
-          console.warn("Webcam unavailable, falling back to simulated patrol feed:", err);
-          setCameraMode('simulated');
+          console.warn("Webcam permission pending or blocked:", err);
         });
     }
+  };
 
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
+  useEffect(() => {
+    if (cameraMode === 'webcam') {
+      startWebcamStream();
+    }
   }, [cameraMode]);
+
 
   // Main 30 FPS Render Loop for Canvases
   useEffect(() => {
@@ -229,33 +227,46 @@ export default function App() {
         const eCtx = eCanvas.getContext('2d');
 
         if (rCtx && eCtx) {
-          if (cameraMode === 'webcam' && vElem && vElem.readyState >= 2) {
-            const width = vElem.videoWidth || 640;
-            const height = vElem.videoHeight || 480;
-
+          if (cameraMode === 'webcam') {
+            const width = vElem?.videoWidth || 640;
+            const height = vElem?.videoHeight || 480;
             rCanvas.width = width; rCanvas.height = height;
             eCanvas.width = width; eCanvas.height = height;
 
-            rCtx.drawImage(vElem, 0, 0, width, height);
-            eCtx.drawImage(vElem, 0, 0, width, height);
+            if (vElem && vElem.readyState >= 2) {
+              rCtx.drawImage(vElem, 0, 0, width, height);
+              eCtx.drawImage(vElem, 0, 0, width, height);
 
-            const bx = width * 0.25 + Math.sin(time / 800) * 20;
-            const by = height * 0.2 + Math.cos(time / 900) * 10;
-            const bw = width * 0.5;
-            const bh = height * 0.65;
+              const bx = width * 0.25 + Math.sin(time / 800) * 20;
+              const by = height * 0.2 + Math.cos(time / 900) * 10;
+              const bw = width * 0.5;
+              const bh = height * 0.65;
 
-            eCtx.strokeStyle = '#00FFCC';
-            eCtx.lineWidth = 3;
-            eCtx.strokeRect(bx, by, bw, bh);
+              eCtx.strokeStyle = '#00FFCC';
+              eCtx.lineWidth = 3;
+              eCtx.strokeRect(bx, by, bw, bh);
 
-            eCtx.fillStyle = '#00FFCC';
-            eCtx.fillRect(bx, by - 26, 160, 26);
-            eCtx.fillStyle = '#000000';
-            eCtx.font = 'bold 13px monospace';
-            eCtx.fillText('PERSON 0.99', bx + 6, by - 8);
+              eCtx.fillStyle = '#00FFCC';
+              eCtx.fillRect(bx, by - 26, 160, 26);
+              eCtx.fillStyle = '#000000';
+              eCtx.font = 'bold 13px monospace';
+              eCtx.fillText('PERSON 0.99', bx + 6, by - 8);
+            } else {
+              rCtx.fillStyle = '#090D16';
+              rCtx.fillRect(0, 0, width, height);
+              rCtx.fillStyle = '#38BDF8';
+              rCtx.font = 'bold 14px sans-serif';
+              rCtx.fillText('📹 Connecting to Camera Stream...', width * 0.2, height * 0.5);
 
-          } else {
+              eCtx.fillStyle = '#090D16';
+              eCtx.fillRect(0, 0, width, height);
+              eCtx.fillStyle = '#00FFCC';
+              eCtx.font = 'bold 14px sans-serif';
+              eCtx.fillText('🤖 AI Camera Initializing...', width * 0.2, height * 0.5);
+            }
+          } else if (cameraMode === 'simulated') {
             // High-Resolution Animated City Patrol Video Feed Simulation
+
             const width = 640;
             const height = 360;
             rCanvas.width = width; rCanvas.height = height;
