@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   ShieldAlert, Activity, Eye, MapPin, Sliders, CheckCircle2, 
   XCircle, Clock, AlertTriangle, Cpu, Camera, RefreshCw, 
-  Filter, Search, Layers, FileText, ChevronRight, Check, Save, Trash2
+  Filter, Search, Layers, FileText, ChevronRight, Check, Save, Trash2, List
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -254,6 +254,16 @@ export default function App() {
             <Camera className="w-4 h-4" /> Live Operations
           </button>
           <button
+            onClick={() => setActiveTab('public')}
+            className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === 'public' 
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25' 
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <List className="w-4 h-4" /> Public Detections List
+          </button>
+          <button
             onClick={() => setActiveTab('detections')}
             className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
               activeTab === 'detections' 
@@ -261,7 +271,7 @@ export default function App() {
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <AlertTriangle className="w-4 h-4" /> Detections Console
+            <AlertTriangle className="w-4 h-4" /> Admin Console
             {incidents.length > 0 && (
               <span className="px-2 py-0.5 text-xs rounded-full bg-rose-500 text-white font-bold">
                 {incidents.length}
@@ -792,6 +802,118 @@ export default function App() {
               </div>
             )}
 
+          </div>
+        )}
+
+        {/* TAB 3: PUBLIC DETECTIONS LIST (READ-ONLY VIEW) */}
+        {activeTab === 'public' && (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="glass-panel p-5 rounded-2xl flex flex-wrap items-center justify-between gap-4 border border-slate-800">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <List className="w-5 h-5 text-cyan-400" /> Public Detections Feed
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">Live transparent view of all city detections and current resolution statuses.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold">
+                  Total Logged: {incidents.length}
+                </span>
+              </div>
+            </div>
+
+            {incidents.length > 0 ? (
+              <div className="space-y-6">
+                {incidents.map((inc, idx) => {
+                  const iid = inc.incident_id;
+                  const vStatus = inc.verification_status || 'Pending Verification';
+                  const status = inc.status || 'Detected';
+                  const proof3 = inc.proof_bbox_b64 || inc.enhanced_frame_b64;
+
+                  return (
+                    <div key={idx} className="glass-panel p-6 rounded-2xl space-y-4">
+                      {/* Header */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                        <div className="flex items-center gap-3">
+                          <h3 className="text-lg font-extrabold text-white">{iid}</h3>
+                          <span className="px-3 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-semibold">
+                            {inc.jurisdiction}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-3 py-1 rounded-xl text-xs font-bold ${
+                            status === 'Resolved (Cleaned)' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                            status === 'In Progress (Crew Dispatched)' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                            'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                          }`}>
+                            {status}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Meta */}
+                      <div className="text-xs text-slate-400 flex flex-wrap gap-4">
+                        <div><b>First Detected:</b> {inc.first_detected}</div>
+                        <div><b>Last Updated:</b> {inc.last_updated}</div>
+                        <div><b>Authenticity:</b> <span className="text-cyan-300 font-semibold">{vStatus}</span></div>
+                        {inc.officer_notes && <div><b>Action Note:</b> <span className="text-slate-200 italic">{inc.officer_notes}</span></div>}
+                      </div>
+
+                      {/* Read-Only Image & Map side-by-side */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5 flex flex-col">
+                          <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <Camera className="w-4 h-4 text-cyan-400" /> Detection Snapshot
+                          </span>
+                          <div className="flex-1 aspect-video min-h-[220px] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 relative">
+                            {proof3 ? (
+                              <img src={`data:image/jpeg;base64,${proof3}`} alt="Detection Snapshot" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-xs text-slate-600 p-4 block">No image</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5 flex flex-col">
+                          <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <MapPin className="w-4 h-4 text-rose-400" /> Location Map
+                          </span>
+                          <div className="flex-1 aspect-video min-h-[220px] rounded-xl overflow-hidden border border-slate-800 relative z-0">
+                            <MapContainer 
+                              center={[inc.lat || centerLat, inc.lon || centerLon]} 
+                              zoom={15} 
+                              scrollWheelZoom={true} 
+                              style={{ height: '100%', width: '100%' }}
+                            >
+                              <MapResizer center={`${inc.lat || centerLat}_${inc.lon || centerLon}`} />
+                              <TileLayer
+                                attribution='&copy; OpenStreetMap'
+                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                              />
+                              <Marker 
+                                position={[inc.lat || centerLat, inc.lon || centerLon]}
+                                icon={(inc.urgency_score || 0) >= 30 ? redIcon : orangeIcon}
+                              >
+                                <Popup>
+                                  <div className="text-xs font-sans text-slate-900 font-bold">
+                                    {iid} - {inc.jurisdiction}
+                                  </div>
+                                </Popup>
+                              </Marker>
+                            </MapContainer>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="glass-panel p-12 text-center rounded-2xl text-slate-400 text-sm">
+                No active detections logged.
+              </div>
+            )}
           </div>
         )}
 
