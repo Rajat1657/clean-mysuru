@@ -274,11 +274,11 @@ export default function App() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
             <span className="w-2 h-2 rounded-full bg-emerald-500 pulse-emerald"></span>
-            ROS 2 Node Online
+            System Live & Active
           </div>
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 text-xs font-semibold">
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-semibold">
             <Cpu className="w-3.5 h-3.5" />
-            5-Stage Retinex Vision Core
+            AI Smart Night Vision Active
           </div>
         </div>
       </header>
@@ -293,41 +293,41 @@ export default function App() {
             {/* Top Metrics Banner */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="glass-card p-5 rounded-2xl flex flex-col justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Lighting State</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Environment Mode</span>
                 <div className="mt-3 flex items-center gap-2">
                   {isNight ? (
                     <span className="px-3 py-1.5 rounded-xl bg-indigo-950/80 border border-indigo-500/40 text-indigo-300 text-xs font-semibold flex items-center gap-2">
-                      🌙 NIGHT MODE (Bilateral Denoise Active)
+                      🌙 Night Mode (AI Brightening Active)
                     </span>
                   ) : (
                     <span className="px-3 py-1.5 rounded-xl bg-amber-950/80 border border-amber-500/40 text-amber-300 text-xs font-semibold flex items-center gap-2">
-                      ☀️ DAYLIGHT MODE (CLAHE Bypassed)
+                      ☀️ Daylight Mode
                     </span>
                   )}
                 </div>
-                <span className="text-[11px] text-slate-500 mt-2">Luminance: {brightness} Lux</span>
+                <span className="text-[11px] text-slate-500 mt-2">Ambient Light: {brightness} Lux</span>
               </div>
 
               <div className="glass-card p-5 rounded-2xl flex flex-col justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Unique Deduplicated Incidents</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Active Incidents</span>
                 <span className="text-3xl font-extrabold text-cyan-400 mt-2">{incidents.length}</span>
-                <span className="text-[11px] text-slate-500 mt-1">Spatial-Temporal Window (20s)</span>
+                <span className="text-[11px] text-slate-500 mt-1">Unique Verified Detections</span>
               </div>
 
               <div className="glass-card p-5 rounded-2xl flex flex-col justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">High Priority Anomalies</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">High Priority Alerts</span>
                 <span className="text-3xl font-extrabold text-rose-500 mt-2">
                   {incidents.filter(i => (i.urgency_score || 0) >= 30).length}
                 </span>
-                <span className="text-[11px] text-slate-500 mt-1">Urgency Threshold ≥ 30</span>
+                <span className="text-[11px] text-slate-500 mt-1">Immediate Action Required</span>
               </div>
 
               <div className="glass-card p-5 rounded-2xl flex flex-col justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Stationary Frames Filtered</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Duplicate Shield</span>
                 <span className="text-3xl font-extrabold text-emerald-400 mt-2">
                   {incidents.reduce((sum, i) => sum + (i.occurrences || 1), 0)}
                 </span>
-                <span className="text-[11px] text-slate-500 mt-1">Truck lingering prevention</span>
+                <span className="text-[11px] text-slate-500 mt-1">Frames Consolidated</span>
               </div>
             </div>
 
@@ -339,31 +339,31 @@ export default function App() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                      <Camera className="w-5 h-5 text-cyan-400" /> Real-Time Dashcam Stream & Vision Core
+                      <Camera className="w-5 h-5 text-cyan-400" /> Live Vehicle Dashcam Feed
                     </h3>
                     <span className="text-xs text-emerald-400 font-mono font-bold flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                      Ultra-Low Delay Stream
+                      Real-time 30 FPS Stream
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <span className="text-xs font-semibold text-slate-400">Raw Input Camera Stream</span>
-                      <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center relative">
+                      <span className="text-xs font-semibold text-slate-400">Standard Camera Feed</span>
+                      <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center relative shadow-inner">
                         <canvas ref={rawCanvasRef} className="w-full h-full object-cover" />
                         {!liveFeed.raw_frame_b64 && (
-                          <span className="text-xs text-slate-500 animate-pulse absolute">Connecting to /dashcam/image_raw...</span>
+                          <span className="text-xs text-slate-500 animate-pulse absolute">Connecting to camera feed...</span>
                         )}
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <span className="text-xs font-semibold text-slate-400">Vision Core Output (5-Stage Retinex)</span>
-                      <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center relative">
+                      <span className="text-xs font-semibold text-slate-400">AI Detection Feed (Enhanced)</span>
+                      <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center relative shadow-inner">
                         <canvas ref={enhancedCanvasRef} className="w-full h-full object-cover" />
                         {!liveFeed.enhanced_frame_b64 && (
-                          <span className="text-xs text-slate-500 animate-pulse absolute">Processing vision core output...</span>
+                          <span className="text-xs text-slate-500 animate-pulse absolute">Processing AI smart feed...</span>
                         )}
                       </div>
                     </div>
@@ -373,7 +373,7 @@ export default function App() {
                 {/* LIVE OBJECT DETECTION TALLY TICKER (Under Camera Stream) */}
                 <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-3">
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                    <Eye className="w-4 h-4 text-cyan-400" /> Live Detection Tally:
+                    <Eye className="w-4 h-4 text-cyan-400" /> Live Object Radar:
                   </span>
                   
                   <div className="flex flex-wrap items-center gap-2">
@@ -407,14 +407,14 @@ export default function App() {
               <div className="lg:col-span-5 glass-panel p-5 rounded-2xl flex flex-col space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <MapPin className="w-5 h-5 text-cyan-400" /> Municipal Location Telemetry
+                    <MapPin className="w-5 h-5 text-cyan-400" /> Live City Map Tracker
                   </h3>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1">
-                  <span className="text-xs text-slate-400">Active GPS Jurisdiction</span>
+                  <span className="text-xs text-slate-400">Current Vehicle Location</span>
                   <div className="text-sm font-bold text-cyan-300">
-                    {liveFeed.jurisdiction || 'Detecting Live Micro-Jurisdiction...'}
+                    {liveFeed.jurisdiction || 'Locating Ward...'}
                   </div>
                   <div className="text-xs text-slate-500 font-mono">
                     Coordinates: ({centerLat}, {centerLon})
