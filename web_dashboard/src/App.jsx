@@ -122,6 +122,24 @@ export default function App() {
   const [syncStatusMsg, setSyncStatusMsg] = useState(null);
   const [cameraMode, setCameraMode] = useState('webcam');
   const [webcamActive, setWebcamActive] = useState(false);
+  const [videoDevices, setVideoDevices] = useState([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState('');
+
+  useEffect(() => {
+    const getDevices = async () => {
+      if (navigator.mediaDevices?.enumerateDevices) {
+        try {
+          const devs = await navigator.mediaDevices.enumerateDevices();
+          const vDevs = devs.filter(d => d.kind === 'videoinput');
+          setVideoDevices(vDevs);
+          if (vDevs.length > 0 && !selectedDeviceId) {
+            setSelectedDeviceId(vDevs[0].deviceId);
+          }
+        } catch (e) {}
+      }
+    };
+    getDevices();
+  }, [cameraMode]);
 
   const [data, setData] = useState(() => {
     const cached = localStorage.getItem('clean_mysuru_alerts');
@@ -193,10 +211,14 @@ export default function App() {
   };
 
   // WebCam Stream Starter
-  const startWebcamStream = async () => {
+  const startWebcamStream = async (deviceIdToUse) => {
     try {
       if (navigator.mediaDevices?.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+        const deviceId = typeof deviceIdToUse === 'string' ? deviceIdToUse : selectedDeviceId;
+        const constraints = {
+          video: deviceId ? { deviceId: { exact: deviceId }, width: 640, height: 480 } : { width: 640, height: 480 }
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
@@ -214,7 +236,7 @@ export default function App() {
     if (cameraMode === 'webcam') {
       startWebcamStream();
     }
-  }, [cameraMode]);
+  }, [cameraMode, selectedDeviceId]);
 
   // Main 30 FPS Render Loop for Canvases
   useEffect(() => {
@@ -690,15 +712,33 @@ export default function App() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                         <span className="text-xs font-semibold text-slate-400">Standard Dashcam Feed</span>
                         {cameraMode === 'webcam' && (
-                          <button
-                            onClick={startWebcamStream}
-                            className="text-[11px] text-cyan-400 font-bold hover:underline flex items-center gap-1"
-                          >
-                            <RefreshCw className="w-3 h-3" /> Start Camera
-                          </button>
+                          <div className="flex items-center gap-2">
+                            {videoDevices.length > 0 && (
+                              <select 
+                                className="bg-slate-900 border border-slate-700 text-xs text-white rounded px-2 py-1 outline-none focus:border-cyan-500"
+                                value={selectedDeviceId}
+                                onChange={(e) => {
+                                  setSelectedDeviceId(e.target.value);
+                                  startWebcamStream(e.target.value);
+                                }}
+                              >
+                                {videoDevices.map((dev, i) => (
+                                  <option key={dev.deviceId || i} value={dev.deviceId}>
+                                    {dev.label || `Camera ${i + 1}`}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                            <button
+                              onClick={() => startWebcamStream()}
+                              className="text-[11px] text-cyan-400 font-bold hover:underline flex items-center gap-1"
+                            >
+                              <RefreshCw className="w-3 h-3" /> Retry
+                            </button>
+                          </div>
                         )}
                       </div>
                       <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center relative shadow-inner">
