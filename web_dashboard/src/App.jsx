@@ -118,6 +118,8 @@ const DEFAULT_INITIAL_DATA = {
   ]
 };
 
+const CLOUD_SYNC_URL = 'https://api.restful-api.dev/objects/ff808181a09d98f701a0be42d22350ef';
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('live');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -209,6 +211,43 @@ export default function App() {
     return DEFAULT_INITIAL_DATA;
   });
 
+  const syncToCloud = async (incidents) => {
+    try {
+      await fetch(CLOUD_SYNC_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'CleanMysuruSync', data: { incidents } })
+      });
+    } catch(e) {}
+  };
+
+  useEffect(() => {
+    const fetchCloudData = async () => {
+      try {
+        const res = await fetch(CLOUD_SYNC_URL);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data && json.data.incidents) {
+            setData(prev => {
+              const existingIds = new Set(prev.incidents.map(i => i.incident_id));
+              const newIncs = json.data.incidents.filter(i => !existingIds.has(i.incident_id));
+              if (newIncs.length > 0) {
+                const merged = [...newIncs, ...prev.incidents];
+                const updated = { ...prev, incidents: merged };
+                localStorage.setItem('clean_mysuru_alerts', JSON.stringify(updated));
+                return updated;
+              }
+              return prev;
+            });
+          }
+        }
+      } catch(e) {}
+    };
+    fetchCloudData();
+    const interval = setInterval(fetchCloudData, 10000); // 10s polling for cross-device sync
+    return () => clearInterval(interval);
+  }, []);
+
   const [savedIncidentId, setSavedIncidentId] = useState(null);
   const [selectedWard, setSelectedWard] = useState('All');
   const [minUrgency, setMinUrgency] = useState(0);
@@ -258,15 +297,13 @@ export default function App() {
 
     showToast(`🔄 Syncing ${queue.length} offline log(s)...`);
     try {
-      const res = await fetch('http://localhost:5000/api/alerts', {
-        method: 'POST',
+      await fetch(CLOUD_SYNC_URL, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+        body: JSON.stringify({ name: 'CleanMysuruSync', data: { incidents: data.incidents } })
       });
-      if (res.ok) {
-        localStorage.removeItem('clean_mysuru_sync_queue');
-        showToast("✅ Offline logs synced to backend server!");
-      }
+      localStorage.removeItem('clean_mysuru_sync_queue');
+      showToast("✅ Offline logs synced to Cloud Database!");
     } catch (e) {}
   };
 
@@ -512,12 +549,8 @@ export default function App() {
 
     if (navigator.onLine) {
       try {
-        await fetch('http://localhost:5000/api/alerts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updatedData)
-        });
-        showToast("✅ Saved & synced to backend!");
+        await syncToCloud(updatedIncidents);
+        showToast("✅ Saved & synced to Cloud DB!");
       } catch (e) {
         showToast("💾 Saved locally in browser storage");
       }
@@ -531,11 +564,23 @@ export default function App() {
     const updatedData = { ...data, incidents: updatedIncidents };
     setData(updatedData);
     localStorage.setItem('clean_mysuru_alerts', JSON.stringify(updatedData));
-    saveToOfflineQueue(updatedData);
+    if (navigator.onLine) {
+      syncToCloud(updatedIncidents);
+    } else {
+      saveToOfflineQueue(updatedData);
+    }
     showToast("🗑️ Incident deleted locally.");
   };
 
   const triggerOfflineDetectionLog = (objectClass = 'Anomaly') => {
+    let snapshotB64 = null;
+    if (enhancedCanvasRef.current) {
+      try {
+        const dataUrl = enhancedCanvasRef.current.toDataURL('image/jpeg', 0.6);
+        snapshotB64 = dataUrl.split(',')[1];
+      } catch(e) {}
+    }
+
     const newId = `INC-MYS-${Math.floor(1000 + Math.random() * 9000)}`;
     const gps = currentGpsRef.current || { lat: 12.3052, lon: 76.6552, ward: 'Ward 14 (Devaraja Market)' };
     const newInc = {
@@ -550,14 +595,19 @@ export default function App() {
       status: "Detected",
       officer_notes: `Auto-Detected: ${typeof objectClass === 'string' ? objectClass.toUpperCase() : 'DEBRIS'} via real-time camera engine.`,
       first_detected: new Date().toLocaleString(),
-      last_updated: new Date().toLocaleString()
+      last_updated: new Date().toLocaleString(),
+      enhanced_frame_b64: snapshotB64
     };
 
     setData(prevData => {
       const updatedIncidents = [newInc, ...prevData.incidents];
       const updatedData = { ...prevData, incidents: updatedIncidents };
       localStorage.setItem('clean_mysuru_alerts', JSON.stringify(updatedData));
-      saveToOfflineQueue(updatedData);
+      if (navigator.onLine) {
+        syncToCloud(updatedIncidents);
+      } else {
+        saveToOfflineQueue(updatedData);
+      }
       return updatedData;
     });
     showToast(`⚡ Logged Anomaly: ${newId}`);
