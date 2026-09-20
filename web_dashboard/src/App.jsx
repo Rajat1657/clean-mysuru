@@ -173,7 +173,7 @@ export default function App() {
           const preds = await modelRef.current.detect(videoRef.current);
           detectionsRef.current = preds;
           
-          const wasteClasses = ['bottle', 'cup', 'chair', 'car', 'truck', 'person', 'cell phone'];
+          const wasteClasses = ['bottle', 'cup', 'chair', 'car', 'truck'];
           const found = preds.find(p => wasteClasses.includes(p.class) && p.score > 0.55);
           if (found && Date.now() - lastLogTimeRef.current > 7000) {
             triggerOfflineDetectionLog(found.class);
@@ -578,7 +578,13 @@ export default function App() {
       try {
         const dataUrl = enhancedCanvasRef.current.toDataURL('image/jpeg', 0.6);
         snapshotB64 = dataUrl.split(',')[1];
-      } catch(e) {}
+      } catch(e) { console.warn("eCanvas error", e); }
+    }
+    if (!snapshotB64 && rawCanvasRef.current) {
+      try {
+        const dataUrl = rawCanvasRef.current.toDataURL('image/jpeg', 0.6);
+        snapshotB64 = dataUrl.split(',')[1];
+      } catch(e) { console.warn("rCanvas error", e); }
     }
 
     const newId = `INC-MYS-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -727,7 +733,7 @@ export default function App() {
           )}
 
           <button
-            onClick={triggerOfflineDetectionLog}
+            onClick={() => triggerOfflineDetectionLog('MANUAL OVERRIDE: GARBAGE DUMP')}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 text-white text-xs font-bold hover:from-cyan-500 hover:to-blue-500 transition-all shadow-md"
           >
             <PlusCircle className="w-3.5 h-3.5" />
@@ -1347,11 +1353,18 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="text-xs text-slate-400 flex flex-wrap gap-4">
+                        <div className="text-xs text-slate-400 flex flex-wrap gap-4 items-center">
                           <div><b>First Detected:</b> {inc.first_detected}</div>
                           <div><b>Last Updated:</b> {inc.last_updated}</div>
                           <div><b>Authenticity:</b> <span className="text-cyan-300 font-semibold">{vStatus}</span></div>
-                          {inc.officer_notes && <div><b>Action Note:</b> <span className="text-slate-200 italic">{inc.officer_notes}</span></div>}
+                          {inc.officer_notes && (
+                            <div className="flex items-center gap-2 border-l border-slate-700 pl-4 ml-2">
+                              <b>Detected Signature:</b> 
+                              <span className="text-emerald-400 font-extrabold px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-md shadow-sm shadow-emerald-500/10 uppercase tracking-widest">
+                                {inc.officer_notes.includes('Auto-Detected:') ? inc.officer_notes.split('Auto-Detected: ')[1]?.split(' ')[0] : (inc.officer_notes.includes('MANUAL') ? 'INDIAN GARBAGE / DEBRIS' : 'UNKNOWN DEBRIS')}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
