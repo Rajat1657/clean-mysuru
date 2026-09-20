@@ -631,39 +631,54 @@ export default function App() {
                         <div><b>Debris Volume Ratio:</b> {(inc.waste_volume * 100).toFixed(1)}%</div>
                       </div>
 
-                      {/* 3 Photo Proofs Gallery */}
-                      <div className="space-y-2">
-                        <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Multi-Frame Photo Proofs (Locked Detection Moment)</span>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                          
-                          <div className="space-y-1.5">
-                            <span className="text-[11px] text-slate-400 font-semibold">Proof 1: Raw Dashcam Capture (No Box)</span>
-                            <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800">
-                              {proof1 ? (
-                                <img src={`data:image/jpeg;base64,${proof1}`} alt="Proof 1 Raw" className="w-full h-full object-cover" />
-                              ) : <span className="text-xs text-slate-600 p-4 block">No image</span>}
-                            </div>
+                      {/* Final Image & Spot on Map Side-by-Side */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        
+                        {/* Final Detection Image */}
+                        <div className="space-y-1.5 flex flex-col">
+                          <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <Camera className="w-4 h-4 text-cyan-400" /> Final Anomaly Detection Proof
+                          </span>
+                          <div className="flex-1 aspect-video min-h-[240px] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 relative">
+                            {proof3 ? (
+                              <img src={`data:image/jpeg;base64,${proof3}`} alt="Final Detection Proof" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-xs text-slate-600 p-4 block">No image captured</span>
+                            )}
                           </div>
-
-                          <div className="space-y-1.5">
-                            <span className="text-[11px] text-slate-400 font-semibold">Proof 2: 5-Stage Retinex View (No Box)</span>
-                            <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800">
-                              {proof2 ? (
-                                <img src={`data:image/jpeg;base64,${proof2}`} alt="Proof 2 Enhanced Clean" className="w-full h-full object-cover" />
-                              ) : <span className="text-xs text-slate-600 p-4 block">No image</span>}
-                            </div>
-                          </div>
-
-                          <div className="space-y-1.5">
-                            <span className="text-[11px] text-slate-400 font-semibold">Proof 3: YOLO Bounding Box Overlay</span>
-                            <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800">
-                              {proof3 ? (
-                                <img src={`data:image/jpeg;base64,${proof3}`} alt="Proof 3 Bounding Box" className="w-full h-full object-cover" />
-                              ) : <span className="text-xs text-slate-600 p-4 block">No image</span>}
-                            </div>
-                          </div>
-
                         </div>
+
+                        {/* Spot on Map */}
+                        <div className="space-y-1.5 flex flex-col">
+                          <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <MapPin className="w-4 h-4 text-rose-400" /> Location Spot on Map
+                          </span>
+                          <div className="flex-1 aspect-video min-h-[240px] rounded-xl overflow-hidden border border-slate-800 relative z-0">
+                            <MapContainer 
+                              center={[inc.lat || centerLat, inc.lon || centerLon]} 
+                              zoom={15} 
+                              scrollWheelZoom={true} 
+                              style={{ height: '100%', width: '100%' }}
+                            >
+                              <MapResizer center={`${inc.lat || centerLat}_${inc.lon || centerLon}`} />
+                              <TileLayer
+                                attribution='&copy; OpenStreetMap'
+                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                              />
+                              <Marker 
+                                position={[inc.lat || centerLat, inc.lon || centerLon]}
+                                icon={(inc.urgency_score || 0) >= 30 ? redIcon : orangeIcon}
+                              >
+                                <Popup>
+                                  <div className="text-xs font-sans text-slate-900 font-bold">
+                                    {iid} - {inc.jurisdiction}
+                                  </div>
+                                </Popup>
+                              </Marker>
+                            </MapContainer>
+                          </div>
+                        </div>
+
                       </div>
 
                       {/* Official Verification & Workflow Action Controls */}
