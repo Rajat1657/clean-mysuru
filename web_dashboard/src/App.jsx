@@ -118,7 +118,7 @@ const DEFAULT_INITIAL_DATA = {
   ]
 };
 
-const CLOUD_SYNC_URL = 'https://api.restful-api.dev/objects/ff808181a09d98f701a0be42d22350ef';
+const CLOUD_SYNC_URL = 'https://kvdb.io/KmvgEzzCh4PUjJkVoEfNQR/incidents';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('live');
@@ -221,7 +221,7 @@ export default function App() {
       await fetch(CLOUD_SYNC_URL, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: 'CleanMysuruSync', data: { incidents } })
+        body: JSON.stringify({ data: { incidents } })
       });
     } catch(e) {}
   };
@@ -305,7 +305,7 @@ export default function App() {
       await fetch(CLOUD_SYNC_URL, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: 'CleanMysuruSync', data: { incidents: data.incidents } })
+        body: JSON.stringify({ data: { incidents: data.incidents } })
       });
       localStorage.removeItem('clean_mysuru_sync_queue');
       showToast("✅ Offline logs synced to Cloud Database!");
