@@ -4,7 +4,7 @@ import {
   XCircle, Clock, AlertTriangle, Cpu, Camera, RefreshCw, 
   Filter, Search, Layers, FileText, ChevronRight, Check
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
 const redIcon = new L.Icon({
@@ -24,6 +24,21 @@ const orangeIcon = new L.Icon({
   popupAnchor: [1, -34],
   shadowSize: [41, 41]
 });
+
+// Helper component to invalidate map size so it fills container 100% without half-loaded tile glitches
+function MapResizer({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    map.invalidateSize();
+    const timer1 = setTimeout(() => map.invalidateSize(), 100);
+    const timer2 = setTimeout(() => map.invalidateSize(), 500);
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
+  }, [map, center]);
+  return null;
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('live');
@@ -261,9 +276,15 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Leaflet Map Component */}
-                <div className="flex-1 min-h-[260px] rounded-xl overflow-hidden border border-slate-800">
-                  <MapContainer center={[centerLat, centerLon]} zoom={12} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
+                {/* Leaflet Map Component with scrollWheelZoom and auto-invalidateSize */}
+                <div className="w-full h-[360px] min-h-[360px] rounded-xl overflow-hidden border border-slate-800 relative z-0">
+                  <MapContainer 
+                    center={[centerLat, centerLon]} 
+                    zoom={13} 
+                    scrollWheelZoom={true} 
+                    style={{ height: '100%', width: '100%' }}
+                  >
+                    <MapResizer center={`${centerLat}_${centerLon}`} />
                     <TileLayer
                       attribution='&copy; OpenStreetMap contributors'
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -422,7 +443,7 @@ export default function App() {
                         <div><b>Debris Volume Ratio:</b> {(inc.waste_volume * 100).toFixed(1)}%</div>
                       </div>
 
-                      {/* 3 Photo Proofs Gallery (Locked from exact detection moment) */}
+                      {/* 3 Photo Proofs Gallery */}
                       <div className="space-y-2">
                         <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Multi-Frame Photo Proofs (Locked Detection Moment)</span>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
