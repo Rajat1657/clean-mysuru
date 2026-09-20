@@ -6,7 +6,7 @@ from collections import deque
 from ultralytics import YOLO
 
 class LowLightEnhancer:
-    def __init__(self, buffer_size=5):
+    def __init__(self, buffer_size=3): # Reduced buffer size to 3 for lower latency
         self.frame_buffer = deque(maxlen=buffer_size)
 
     def stage1_isp_white_balance(self, frame):
@@ -35,7 +35,7 @@ class LowLightEnhancer:
         img_norm = frame.astype(np.float32) / 255.0
         alpha = 0.35
         x = img_norm
-        for _ in range(3):
+        for _ in range(2): # 2 iterations for speed and zero delay
             x = x + alpha * x * (1.0 - x)
         enhanced = np.clip(x * 255.0, 0, 255).astype(np.uint8)
         return enhanced
@@ -84,7 +84,7 @@ class WasteDetector:
         self.model = YOLO(model_path)
         self.model.to(self.device)
 
-        self.enhancer = LowLightEnhancer(buffer_size=5)
+        self.enhancer = LowLightEnhancer(buffer_size=3)
 
         self.person_classes = {'person'}
         self.vehicle_classes = {'car', 'truck', 'bus', 'motorcycle', 'bicycle', 'train', 'boat'}
@@ -97,9 +97,8 @@ class WasteDetector:
 
     def process_frame(self, frame):
         if frame is None or frame.size == 0:
-            return frame, frame, frame, [], 0.0, False, 0.0
+            return frame, frame, frame, [], [], 0.0, False, 0.0
 
-        # 5-Stage Retinex Enhanced Frame (Clean, without bounding boxes)
         enhanced_clean_frame, is_night_mode, brightness = self.enhancer.enhance(frame)
         annotated_frame = enhanced_clean_frame.copy()
         
@@ -108,7 +107,8 @@ class WasteDetector:
 
         results = self.model(enhanced_clean_frame, device=self.device, conf=0.45, verbose=False)[0]
 
-        detections = []
+        waste_detections = []
+        all_detected_labels = []
         waste_box_area = 0.0
 
         if len(results.boxes) > 0:
@@ -125,30 +125,33 @@ class WasteDetector:
                     category = 'PERSON'
                     color = (255, 255, 0)
                     label_str = f"PERSON {conf:.2f}"
+                    all_detected_labels.append("PERSON")
                 elif cls_name in self.vehicle_classes:
                     category = 'VEHICLE'
                     color = (255, 0, 255)
                     label_str = f"VEHICLE: {cls_name.upper()} {conf:.2f}"
+                    all_detected_labels.append(f"VEHICLE: {cls_name.upper()}")
                 elif cls_name in self.waste_classes:
                     category = 'ILLEGAL DUMPING'
                     color = (0, 230, 118)
                     label_str = f"ILLEGAL DUMPING: {cls_name.upper()} {conf:.2f}"
                     waste_box_area += box_area
-                    detections.append({
+                    all_detected_labels.append(f"ILLEGAL DUMPING ({cls_name.upper()})")
+                    waste_detections.append({
                         'label': f"illegal dumping ({cls_name})",
                         'confidence': conf,
                         'box': [x1, y1, x2, y2],
                         'area': box_area
                     })
                 else:
+                    all_detected_labels.append(cls_name.upper())
                     continue
 
-                # Draw bounding box ONLY on annotated_frame
                 cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
                 cv2.putText(annotated_frame, label_str, (x1, max(y1 - 10, 20)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
 
-        if len(detections) == 0 and is_night_mode and brightness < 20.0:
+        if len(waste_detections) == 0 and is_night_mode and brightness < 20.0:
             gray = cv2.cvtColor(enhanced_clean_frame, cv2.COLOR_BGR2GRAY)
             mask = cv2.inRange(gray, 30, 85)
             roi_mask = np.zeros_like(mask)
@@ -161,7 +164,8 @@ class WasteDetector:
                 if c_area > 2000:
                     x, y, bw, bh = cv2.boundingRect(cnt)
                     waste_box_area += (bw * bh)
-                    detections.append({
+                    all_detected_labels.append("CONCRETE DEBRIS")
+                    waste_detections.append({
                         'label': 'concrete debris block',
                         'confidence': 0.88,
                         'box': [x, y, x + bw, y + bh],
@@ -173,4 +177,4 @@ class WasteDetector:
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
 
         waste_volume = round(waste_box_area / total_area, 4)
-        return frame, enhanced_clean_frame, annotated_frame, detections, waste_volume, is_night_mode, brightness
+        return frame, enhanced_clean_frame, annotated_frame, waste_detections, all_detected_labels, waste_volume, is_night_mode, brightness

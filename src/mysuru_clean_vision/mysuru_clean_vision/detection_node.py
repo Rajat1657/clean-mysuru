@@ -16,11 +16,12 @@ from mysuru_clean_vision.jurisdiction_router import JurisdictionRouter
 class DetectionNode(Node):
     def __init__(self):
         super().__init__('detection_node')
+        # Queue size = 1 for ZERO streaming delay (always processes latest frame)
         self.subscription = self.create_subscription(
             Image,
             '/dashcam/image_raw',
             self.image_callback,
-            10
+            1
         )
         self.alert_publisher = self.create_publisher(String, '/civic_alerts/construction_dumping', 10)
 
@@ -64,27 +65,27 @@ class DetectionNode(Node):
         frame = np.frombuffer(msg.data, dtype=np.uint8).reshape((msg.height, msg.width, 3))
 
         # Process frame with 5-Stage Retinex + YOLO vision engine
-        raw_frame, enhanced_clean_frame, annotated_frame, detections, waste_volume, is_night_mode, brightness = self.detector.process_frame(frame)
+        raw_frame, enhanced_clean_frame, annotated_frame, waste_detections, all_detected_labels, waste_volume, is_night_mode, brightness = self.detector.process_frame(frame)
 
         current_time_str = time.strftime('%H:%M:%S')
         now_ts = time.time()
 
-        _, live_raw_enc = cv2.imencode('.jpg', raw_frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
-        _, live_ann_enc = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+        # Fast 60% JPEG encoding to reduce payload size and eliminate video latency
+        _, live_raw_enc = cv2.imencode('.jpg', raw_frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
+        _, live_ann_enc = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
         live_raw_b64 = base64.b64encode(live_raw_enc).decode('utf-8')
         live_ann_b64 = base64.b64encode(live_ann_enc).decode('utf-8')
 
-        # Build live frame object tally count
+        # Build live frame object tally count for ALL detected objects (Person, Vehicle, Waste)
         tally_counter = Counter()
-        for d in detections:
-            lbl = d.get('label', 'object').upper()
-            tally_counter[lbl] += 1
+        for lbl in all_detected_labels:
+            tally_counter[lbl.upper()] += 1
         
         tally_dict = dict(tally_counter)
 
         user_mods = self.load_existing_user_modifications()
 
-        alert_triggered = len(detections) > 0 and waste_volume > 0
+        alert_triggered = len(waste_detections) > 0 and waste_volume > 0
 
         if alert_triggered:
             urgency_score = int(waste_volume * 100) + 15
@@ -99,9 +100,9 @@ class DetectionNode(Node):
                 existing_incident['waste_volume'] = max(existing_incident['waste_volume'], float(waste_volume))
                 existing_incident['urgency_score'] = max(existing_incident['urgency_score'], urgency_score)
             else:
-                _, p1_enc = cv2.imencode('.jpg', raw_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-                _, p2_enc = cv2.imencode('.jpg', enhanced_clean_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-                _, p3_enc = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                _, p1_enc = cv2.imencode('.jpg', raw_frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
+                _, p2_enc = cv2.imencode('.jpg', enhanced_clean_frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
+                _, p3_enc = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
 
                 proof1_b64 = base64.b64encode(p1_enc).decode('utf-8')
                 proof2_b64 = base64.b64encode(p2_enc).decode('utf-8')
@@ -119,8 +120,8 @@ class DetectionNode(Node):
                     'jurisdiction': self.current_authority,
                     'urgency_score': urgency_score,
                     'waste_volume': float(waste_volume),
-                    'detections_count': len(detections),
-                    'detections': detections,
+                    'detections_count': len(waste_detections),
+                    'detections': waste_detections,
                     'lat': self.current_lat,
                     'lon': self.current_lon,
                     'proof_raw_b64': mods.get('proof_raw_b64') or proof1_b64,
@@ -168,7 +169,7 @@ class DetectionNode(Node):
                 'enhanced_frame_b64': live_ann_b64,
                 'is_night_mode': is_night_mode,
                 'brightness': brightness,
-                'detections_count': len(detections),
+                'detections_count': len(waste_detections),
                 'tally': tally_dict,
                 'waste_volume': float(waste_volume),
                 'lat': self.current_lat,

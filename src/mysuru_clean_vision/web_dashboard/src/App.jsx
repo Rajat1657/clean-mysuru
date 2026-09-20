@@ -7,31 +7,34 @@ import {
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
-// Mysore Palace Architectural Outline SVG Component
+// Accurate, standalone Mysore Palace Architectural Outline SVG (No background box)
 const MysorePalaceLogo = () => (
-  <svg className="w-8 h-8 text-cyan-400" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    {/* Base Foundation */}
-    <path d="M10 85 H90 V90 H10 Z" fill="currentColor" fillOpacity="0.1" />
-    {/* Lower Arches Arcade */}
-    <path d="M15 85 V65 H85 V85" />
-    <path d="M20 85 V72 C20 68 28 68 28 72 V85" />
-    <path d="M34 85 V72 C34 68 42 68 42 72 V85" />
-    <path d="M48 85 V68 C48 62 52 62 52 68 V85" />
-    <path d="M58 85 V72 C58 68 66 68 66 72 V85" />
-    <path d="M72 85 V72 C72 68 80 68 80 72 V85" />
-    {/* Middle Story & Pillars */}
-    <path d="M18 65 V45 H82 V65" />
-    <path d="M25 65 V50 M35 65 V50 M45 65 V50 M55 65 V50 M65 65 V50 M75 65 V50" strokeWidth="1.5" />
-    {/* Central Grand Dome */}
-    <path d="M42 45 C42 25 58 25 58 45 Z" fill="currentColor" fillOpacity="0.2" />
-    <path d="M50 25 V18" />
-    <circle cx="50" cy="16" r="2" fill="currentColor" />
-    {/* Left Flank Dome */}
-    <path d="M15 45 C15 32 28 32 28 45 Z" fill="currentColor" fillOpacity="0.15" />
-    <path d="M21.5 32 V27" />
-    {/* Right Flank Dome */}
-    <path d="M72 45 C72 32 85 32 85 45 Z" fill="currentColor" fillOpacity="0.15" />
-    <path d="M78.5 32 V27" />
+  <svg className="w-10 h-10 text-cyan-400 drop-shadow-[0_0_10px_rgba(56,189,248,0.5)]" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    {/* Base Arcade Line */}
+    <path d="M5 88 H95 M5 92 H95" strokeWidth="1.5" />
+    {/* Lower Arches Promenade (7 Iconic Arches) */}
+    <path d="M8 88 V70 C8 63 16 63 16 70 V88" />
+    <path d="M20 88 V70 C20 63 28 63 28 70 V88" />
+    <path d="M32 88 V70 C32 63 40 63 40 70 V88" />
+    <path d="M44 88 V66 C44 58 56 58 56 66 V88" strokeWidth="2.8" />
+    <path d="M60 88 V70 C60 63 68 63 68 70 V88" />
+    <path d="M72 88 V70 C72 63 80 63 80 70 V88" />
+    <path d="M84 88 V70 C84 63 92 63 92 70 V88" />
+    {/* Upper Balcony & Ornamental Pillars */}
+    <path d="M10 63 H90 M10 48 H90" />
+    <path d="M14 63 V48 M24 63 V48 M34 63 V48 M44 63 V48 M56 63 V48 M66 63 V48 M76 63 V48 M86 63 V48" strokeWidth="1.2" />
+    {/* Central Grand Onion Dome (Golden Dome) */}
+    <path d="M40 48 C40 22 60 22 60 48 Z" fill="currentColor" fillOpacity="0.25" strokeWidth="2.5" />
+    <path d="M50 22 V14 M50 14 L47 18 M50 14 L53 18" strokeWidth="2" />
+    <circle cx="50" cy="12" r="2.5" fill="currentColor" />
+    {/* Left Secondary Chhatri Dome */}
+    <path d="M12 48 C12 34 26 34 26 48 Z" fill="currentColor" fillOpacity="0.18" />
+    <path d="M19 34 V28" />
+    <circle cx="19" cy="26" r="1.5" fill="currentColor" />
+    {/* Right Secondary Chhatri Dome */}
+    <path d="M74 48 C74 34 88 34 88 48 Z" fill="currentColor" fillOpacity="0.18" />
+    <path d="M81 34 V28" />
+    <circle cx="81" cy="26" r="1.5" fill="currentColor" />
   </svg>
 );
 
@@ -94,7 +97,7 @@ export default function App() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 100); // 100ms polling for smooth stream
+    const interval = setInterval(fetchData, 40); // 40ms polling for ultra-low streaming delay
     return () => clearInterval(interval);
   }, []);
 
@@ -146,12 +149,10 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#090D16] text-slate-100 flex flex-col font-sans">
       
-      {/* HEADER NAVBAR WITH MYSORE PALACE OUTLINE LOGO */}
+      {/* HEADER NAVBAR WITH CLEAN MYSORE PALACE OUTLINE (NO BOX) */}
       <header className="sticky top-0 z-50 glass-panel border-b border-slate-800/80 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-gradient-to-tr from-cyan-600/30 to-blue-600/30 border border-cyan-500/40 shadow-lg shadow-cyan-500/10">
-            <MysorePalaceLogo />
-          </div>
+          <MysorePalaceLogo />
           <div>
             <h1 className="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
               Clean Mysuru
@@ -261,7 +262,7 @@ export default function App() {
                     </h3>
                     <span className="text-xs text-emerald-400 font-mono font-bold flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                      30 FPS Ultra Stream
+                      Ultra-Low Delay Stream
                     </span>
                   </div>
 
