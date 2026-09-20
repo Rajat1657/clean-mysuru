@@ -28,17 +28,29 @@ class LowLightEnhancer:
         else:
             frame_wb = frame_bl
 
-        denoised = cv2.bilateralFilter(frame_wb, d=3, sigmaColor=15, sigmaSpace=15)
+        denoised = cv2.bilateralFilter(frame_wb, d=5, sigmaColor=25, sigmaSpace=25)
         return denoised
 
     def stage2_zero_dce_retinex(self, frame):
-        img_norm = frame.astype(np.float32) / 255.0
-        alpha = 0.35
+        # Convert to LAB color space for luminance-only CLAHE enhancement (preserves true color tone)
+        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+        l_channel, a_channel, b_channel = cv2.split(lab)
+
+        # Contrast Limited Adaptive Histogram Equalization (CLAHE)
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        l_enhanced = clahe.apply(l_channel)
+
+        enhanced_lab = cv2.merge([l_enhanced, a_channel, b_channel])
+        enhanced_bgr = cv2.cvtColor(enhanced_lab, cv2.COLOR_LAB2BGR)
+
+        # Zero-DCE Retinex non-linear curve fitting for natural contrast boosting
+        img_norm = enhanced_bgr.astype(np.float32) / 255.0
+        alpha = 0.45
         x = img_norm
-        for _ in range(2): # 2 iterations for speed and zero delay
+        for _ in range(2):
             x = x + alpha * x * (1.0 - x)
-        enhanced = np.clip(x * 255.0, 0, 255).astype(np.uint8)
-        return enhanced
+        retinex_out = np.clip(x * 255.0, 0, 255).astype(np.uint8)
+        return retinex_out
 
     def stage3_temporal_denoise(self, frame):
         self.frame_buffer.append(frame.astype(np.float32))
@@ -55,8 +67,13 @@ class LowLightEnhancer:
         return np.clip(temp_avg, 0, 255).astype(np.uint8)
 
     def stage4_detail_restoration(self, frame):
-        blurred = cv2.GaussianBlur(frame, (3, 3), 1.0)
-        detail = cv2.addWeighted(frame, 1.20, blurred, -0.20, 0)
+        # High-definition sharpening & gamma correction (gamma=1.15)
+        invGamma = 1.0 / 1.15
+        table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
+        gamma_corrected = cv2.LUT(frame, table)
+
+        blurred = cv2.GaussianBlur(gamma_corrected, (3, 3), 1.0)
+        detail = cv2.addWeighted(gamma_corrected, 1.35, blurred, -0.35, 0)
         return detail
 
     def enhance(self, frame):

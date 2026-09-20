@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   ShieldAlert, Activity, Eye, MapPin, Sliders, CheckCircle2, 
   XCircle, Clock, AlertTriangle, Cpu, Camera, RefreshCw, 
-  Filter, Search, Layers, FileText, ChevronRight, Check, Save
+  Filter, Search, Layers, FileText, ChevronRight, Check, Save, Trash2
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -85,7 +85,7 @@ export default function App() {
   const [selectedWard, setSelectedWard] = useState('All');
   const [minUrgency, setMinUrgency] = useState(0);
   const [verifFilter, setVerifFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [workflowTab, setWorkflowTab] = useState('All'); // 3 Workflow Tabs: 'All', 'Detected', 'In Progress', 'Resolved'
   const [searchQuery, setSearchQuery] = useState('');
 
   const fetchData = async () => {
@@ -140,6 +140,23 @@ export default function App() {
     }
   };
 
+  const deleteIncident = async (incidentId) => {
+    const updatedIncidents = data.incidents.filter(inc => inc.incident_id !== incidentId);
+    const updatedData = { ...data, incidents: updatedIncidents };
+    setData(updatedData);
+    localStorage.setItem('clean_mysuru_alerts', JSON.stringify(updatedData));
+
+    try {
+      await fetch('http://localhost:5000/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData)
+      });
+    } catch (e) {
+      console.error("Failed to delete incident:", e);
+    }
+  };
+
   const liveFeed = data.live_feed || {};
   const incidents = data.incidents || [];
   const tally = liveFeed.tally || {};
@@ -148,7 +165,12 @@ export default function App() {
     if (selectedWard !== 'All' && inc.jurisdiction !== selectedWard) return false;
     if ((inc.urgency_score || 0) < minUrgency) return false;
     if (verifFilter !== 'All' && inc.verification_status !== verifFilter) return false;
-    if (statusFilter !== 'All' && inc.status !== statusFilter) return false;
+    
+    // Workflow Tabs filtering
+    if (workflowTab === 'Unattended' && (inc.status || 'Detected') !== 'Detected') return false;
+    if (workflowTab === 'In Progress' && (inc.status || 'Detected') !== 'In Progress (Crew Dispatched)') return false;
+    if (workflowTab === 'Resolved' && (inc.status || 'Detected') !== 'Resolved (Cleaned)') return false;
+    
     if (searchQuery && !inc.incident_id.toLowerCase().includes(searchQuery.toLowerCase()) && !inc.jurisdiction.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
@@ -157,6 +179,10 @@ export default function App() {
   const centerLon = liveFeed.lon || 80.2739;
   const isNight = liveFeed.is_night_mode || false;
   const brightness = liveFeed.brightness || 0.0;
+
+  const countUnattended = incidents.filter(i => (i.status || 'Detected') === 'Detected').length;
+  const countInProgress = incidents.filter(i => i.status === 'In Progress (Crew Dispatched)').length;
+  const countResolved = incidents.filter(i => i.status === 'Resolved (Cleaned)').length;
 
   return (
     <div className="min-h-screen bg-[#090D16] text-slate-100 flex flex-col font-sans">
@@ -396,16 +422,74 @@ export default function App() {
         {activeTab === 'detections' && (
           <div className="space-y-6 animate-fadeIn">
             
+            {/* 3 WORKFLOW STATUS TABS (UNATTENDED / IN PROGRESS / RESOLVED) */}
+            <div className="glass-panel p-2 rounded-2xl flex flex-wrap items-center justify-between gap-2 border border-slate-800">
+              <div className="flex items-center gap-2 p-1 bg-slate-950/80 rounded-xl border border-slate-800 flex-1 flex-wrap">
+                <button
+                  onClick={() => setWorkflowTab('All')}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all ${
+                    workflowTab === 'All'
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  All Incidents ({incidents.length})
+                </button>
+
+                <button
+                  onClick={() => setWorkflowTab('Unattended')}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all ${
+                    workflowTab === 'Unattended'
+                      ? 'bg-rose-500 text-white shadow-md shadow-rose-500/25'
+                      : 'text-rose-400 hover:text-rose-300 hover:bg-rose-500/10'
+                  }`}
+                >
+                  <AlertTriangle className="w-4 h-4" /> Unattended / Detected
+                  <span className="px-2 py-0.5 rounded-full bg-slate-950 text-rose-300 font-extrabold text-[11px]">
+                    {countUnattended}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setWorkflowTab('In Progress')}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all ${
+                    workflowTab === 'In Progress'
+                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/25 font-black'
+                      : 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/10'
+                  }`}
+                >
+                  <Clock className="w-4 h-4" /> In Progress (Crew Dispatched)
+                  <span className="px-2 py-0.5 rounded-full bg-slate-950 text-amber-300 font-extrabold text-[11px]">
+                    {countInProgress}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setWorkflowTab('Resolved')}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all ${
+                    workflowTab === 'Resolved'
+                      ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/25 font-black'
+                      : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'
+                  }`}
+                >
+                  <CheckCircle2 className="w-4 h-4" /> Resolved (Cleaned)
+                  <span className="px-2 py-0.5 rounded-full bg-slate-950 text-emerald-300 font-extrabold text-[11px]">
+                    {countResolved}
+                  </span>
+                </button>
+              </div>
+            </div>
+
             {/* Filter Bar */}
             <div className="glass-panel p-5 rounded-2xl space-y-4">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Filter className="w-5 h-5 text-cyan-400" /> Incident Management & Verification Filters
+                  <Filter className="w-5 h-5 text-cyan-400" /> Incident Management Filters
                 </h3>
                 <span className="text-xs text-slate-400">Showing {filteredIncidents.length} of {incidents.length} Incident(s)</span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 
                 {/* Search */}
                 <div className="space-y-1.5">
@@ -449,21 +533,6 @@ export default function App() {
                     <option value="Pending Verification">Pending Verification</option>
                     <option value="Verified Real Anomaly">Verified Real Anomaly</option>
                     <option value="Marked as False Positive (YOLO Misdetection)">Marked as False Positive</option>
-                  </select>
-                </div>
-
-                {/* Workflow Status Filter */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-400">Workflow Status</label>
-                  <select
-                    value={statusFilter}
-                    onChange={e => setStatusFilter(e.target.value)}
-                    className="w-full bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
-                  >
-                    <option value="All">All Statuses</option>
-                    <option value="Detected">Detected</option>
-                    <option value="In Progress (Crew Dispatched)">In Progress (Crew Dispatched)</option>
-                    <option value="Resolved (Cleaned)">Resolved (Cleaned)</option>
                   </select>
                 </div>
 
@@ -561,25 +630,34 @@ export default function App() {
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Official Action & Verification Controls</span>
                           
-                          {/* SAVE BUTTON FOR INDIVIDUAL / ALL INCIDENT CHANGES */}
-                          <button
-                            onClick={() => updateIncident(iid, vStatus, status, inc.officer_notes || '')}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-lg ${
-                              savedIncidentId === iid 
-                                ? 'bg-emerald-500 text-slate-950 shadow-emerald-500/30' 
-                                : 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500 shadow-cyan-500/20'
-                            }`}
-                          >
-                            {savedIncidentId === iid ? (
-                              <>
-                                <Check className="w-4 h-4" /> Saved locally & synced!
-                              </>
-                            ) : (
-                              <>
-                                <Save className="w-4 h-4" /> Save Detection Decision
-                              </>
-                            )}
-                          </button>
+                          {/* SAVE & DELETE BUTTONS NEXT TO EACH OTHER */}
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => updateIncident(iid, vStatus, status, inc.officer_notes || '')}
+                              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-lg ${
+                                savedIncidentId === iid 
+                                  ? 'bg-emerald-500 text-slate-950 shadow-emerald-500/30' 
+                                  : 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500 shadow-cyan-500/20'
+                              }`}
+                            >
+                              {savedIncidentId === iid ? (
+                                <>
+                                  <Check className="w-4 h-4" /> Saved locally & synced!
+                                </>
+                              ) : (
+                                <>
+                                  <Save className="w-4 h-4" /> Save Detection Decision
+                                </>
+                              )}
+                            </button>
+
+                            <button
+                              onClick={() => deleteIncident(iid)}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30 hover:bg-rose-500 hover:text-white transition-all"
+                            >
+                              <Trash2 className="w-4 h-4" /> Delete
+                            </button>
+                          </div>
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -609,18 +687,29 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* Workflow Status Dropdown */}
+                          {/* Workflow Status Radio/Buttons (Replaced dropdown) */}
                           <div className="space-y-2">
                             <label className="text-xs font-semibold text-slate-300">2. Assign Progress Workflow</label>
-                            <select
-                              value={status}
-                              onChange={e => updateIncident(iid, vStatus, e.target.value, inc.officer_notes || '')}
-                              className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-semibold"
-                            >
-                              <option value="Detected">Detected</option>
-                              <option value="In Progress (Crew Dispatched)">In Progress (Crew Dispatched)</option>
-                              <option value="Resolved (Cleaned)">Resolved (Cleaned)</option>
-                            </select>
+                            <div className="flex flex-col gap-2">
+                              {[
+                                { label: 'Detected', val: 'Detected' },
+                                { label: 'In Progress (Crew Dispatched)', val: 'In Progress (Crew Dispatched)' },
+                                { label: 'Resolved (Cleaned)', val: 'Resolved (Cleaned)' }
+                              ].map((stOpt, stIdx) => (
+                                <button
+                                  key={stIdx}
+                                  onClick={() => updateIncident(iid, vStatus, stOpt.val, inc.officer_notes || '')}
+                                  className={`px-3 py-2 rounded-xl text-xs font-semibold text-left transition-all flex items-center justify-between ${
+                                    status === stOpt.val 
+                                      ? 'bg-teal-600 text-white border border-teal-400' 
+                                      : 'bg-slate-950/80 text-slate-400 hover:text-white border border-slate-800'
+                                  }`}
+                                >
+                                  <span>{stOpt.label}</span>
+                                  {status === stOpt.val && <Check className="w-4 h-4 text-white" />}
+                                </button>
+                              ))}
+                            </div>
 
                             <div className="pt-2 space-y-1">
                               <label className="text-xs font-semibold text-slate-300">3. Officer Dispatch / Audit Notes</label>
