@@ -6,16 +6,16 @@
 
 | Field | Value |
 |---|---|
-| Team ID (from dashboard) | `HM-CIVIC-2026` |
-| Team Name | Clean Mysuru Vision Team |
-| College(s) | Mysore Institution of Technology & Engineering |
-| Team Leader | Rajat M · `rajat.m@example.com` · `+91 9876543210` |
+| Team ID (from dashboard) | `HM26-C12A` |
+| Team Name | Odinsons |
+| College(s) | SRM Institute of Science and Technology · Sri Sivasubramaniya Nadar College of Engineering |
+| Team Leader | Rajat Menon · `rajat16m5@gmail.com` · `9916571530` |
 | Repository | [https://github.com/Rajat1657/clean-mysuru](https://github.com/Rajat1657/clean-mysuru) |
 
 | # | Member | Program & Year | GitHub Handle | Primary Role |
 |---|---|---|---|---|
-| 1 | Rajat M (Lead) | B.E. CSE, 3rd yr | [@Rajat1657](https://github.com/Rajat1657) | Lead Systems Architect & Vision Engineer |
-| 2 | Siddartha Sivakumar | B.E. CSE, 3rd yr | [@hotice301](https://github.com/hotice301) | Lead Frontend Developer & Geospatial Architect |
+| 1 | Rajat Menon (Lead) | BE/B.Tech (2029) | [@Rajat1657](https://github.com/Rajat1657) | ROS 2 Vision Engine & Backend API |
+| 2 | Siddhartha Sivakumar | BE/B.Tech (2028) | [@hotice301](https://github.com/hotice301) | React Dashboard & Leaflet Mapping |
 
 ---
 
@@ -98,4 +98,4 @@
 - [x] No code specific to this challenge was written before 18 Sept 2026, 00:00 IST.
 - [x] We will not modify or replace any linked file after 20 Sept 2026, 23:59 IST.
 
-**Submitted by:** Rajat M · **Date/Time (IST):** 20-09-2026 21:40
+**Submitted by:** Rajat Menon · **Date/Time (IST):** 20-09-2026 21:40

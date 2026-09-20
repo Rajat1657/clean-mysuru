@@ -1,7 +1,7 @@
 # Clean Mysuru — Autonomous Anomaly Detection & Dynamic Jurisdictional Routing
 
 > HackMysuru 1.0 · Phase 1 · Civic Governance & Clean Mysuru
-> Team Clean Mysuru (Team ID: #HM-502)
+> Team Odinsons (`HM26-C12A`)
 
 | 📎 Submission links | 📋 Templates | 🏗️ Architecture | 🛡️ Hard constraints | ⚙️ Setup | 🤖 AI usage | ⚠️ Limitations |
 |---|---|---|---|---|---|---|
@@ -84,8 +84,8 @@ git clone https://github.com/Rajat1657/clean-mysuru.git && cd clean-mysuru
 
 | Name | Role | GitHub |
 |---|---|---|
-| Rajat M | Lead Systems Architect & Vision Engineer (ROS 2, YOLOv8, Retinex Vision Engine) | [@Rajat1657](https://github.com/Rajat1657) |
-| Siddartha Sivakumar | Lead Frontend Developer & Geospatial Architect (React Dashboard, Leaflet Routing) | [@hotice301](https://github.com/hotice301) |
+| Rajat Menon | ROS 2 Vision Engine & Backend API | [@Rajat1657](https://github.com/Rajat1657) |
+| Siddhartha Sivakumar | React Dashboard & Leaflet Mapping | [@hotice301](https://github.com/hotice301) |
 
 ## License
 
