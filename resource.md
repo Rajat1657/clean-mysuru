@@ -1,41 +1,101 @@
-# 📎 Clean Mysuru — HackMysuru 1.0 Submission Resources
-
-## 🎬 Video Guide & Submission Artifacts
-- **Official Submission Video (Google Drive)**: `[HM-CIVIC-2026_video.mp4]` *(Upload link placeholder: `https://drive.google.com/file/d/HM-CIVIC-2026_video/view?usp=sharing`)*
-- **Video SHA-256 Hash**: `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` *(Recorded upon final OBS export)*
-- **Primary GitHub Repository**: [https://github.com/Rajat1657/clean-mysuru](https://github.com/Rajat1657/clean-mysuru)
-- **Live Interactive Demo**: Local launch script (`./start_all.sh`) hosting the reactive dashboard at `http://localhost:5173`.
+# HackMysuru 1.0 — Phase 1 Submission Index
 
 ---
 
-## ⏱️ Video Chapter Timestamps (9:45 Total)
+## 1. Team Details
 
-### Part 1 — Product Pitch (0:00 – 3:00)
-- **`0:00 - 0:20`**: **Hook & Problem** — Team Clean Mysuru (`HM-CIVIC-2026`), Sub-Problem 5 (Autonomous Detection Without Reporting), Mysore Palace & ward boundary context.
-- **`0:20 - 0:40`**: **Target Users & Constraints** — MCC Ward Engineers, Sanitation crews, zero-reporting citizen transparency, pitch-black night visibility.
-- **`0:40 - 1:50`**: **Live Core Flow** — Continuous dashcam ingestion $\rightarrow$ 5-Stage Retinex enhancement $\rightarrow$ YOLOv8 waste detection $\rightarrow$ Local Shapely polygon jurisdiction routing $\rightarrow$ Executive dashboard triage (Unattended / In Progress / Resolved).
-- **`1:50 - 2:30`**: **Bad-Input Test** — Submitting misdetection (false positive) and false location inputs; verifying local officer verification flow (`Pending` $\rightarrow$ `Marked as False Positive`).
-- **`2:30 - 3:00`**: **Offline Test** — Network disconnect / DevTools offline test; verifying zero data loss with local `localStorage` caching and offline Shapely GeoJSON polygon boundary resolution.
+| Field | Value |
+|---|---|
+| Team ID (from dashboard) | `HM-CIVIC-2026` |
+| Team Name | Clean Mysuru Vision Team |
+| College(s) | Mysore Institution of Technology & Engineering |
+| Team Leader | Rajat M · `rajat.m@example.com` · `+91 9876543210` |
+| Repository | [https://github.com/Rajat1657/clean-mysuru](https://github.com/Rajat1657/clean-mysuru) |
 
-### Part 2 — Code & System Design (3:00 – 9:45)
-- **`3:00 - 4:30`**: **Architecture Walkthrough** — Explaining `docs/architecture.md` (ROS 2 image nodes $\rightarrow$ Retinex Vision Engine $\rightarrow$ Python FastAPI $\rightarrow$ HTML5 Canvas React UI).
-- **`4:30 - 5:30`**: **Data Model & APIs** — `server.py` & JSON schemas (`/api/alerts`, `live_feed`, `incidents`, `urgency_score`).
-- **`5:30 - 7:30`**: **Core Logic in IDE** — Line-by-line breakdown of `mysuru_clean_vision/detection_node.py` and `vision_engine.py` (5-Stage Retinex Zero-DCE curve fitting + deduplication).
-- **`7:30 - 8:30`**: **Decisions & Trade-offs** — Explaining `resource-templates/decision-log-template.md` (Edge Retinex Vision vs. Rejected Citizen OTP Mobile App).
-- **`8:30 - 9:15`**: **Scale & Limits** — What breaks at city scale (external Nominatim rate limits under 500 vehicles) and our fix (in-memory H3 spatial indexing).
-- **`9:15 - 9:45`**: **AI Usage & Disclosure** — Walking through `ai.md` (Google Antigravity AI, PyTorch YOLOv8, line-by-line verification).
+| # | Member | Program & Year | GitHub Handle | Primary Role |
+|---|---|---|---|---|
+| 1 | Rajat M (Lead) | B.E. CSE, 3rd yr | [@Rajat1657](https://github.com/Rajat1657) | Lead Systems Architect & Vision Engineer |
+| 2 | Siddartha Sivakumar | B.E. CSE, 3rd yr | [@hotice301](https://github.com/hotice301) | Lead Frontend Developer & Geospatial Architect |
 
 ---
 
-## 👥 Team Information
-- **Team Name**: Clean Mysuru Vision Team
-- **Team ID**: `HM-CIVIC-2026`
-- **Sub-Problem**: Sub-Problem 5 (Detection Without Reporting)
-- **Members**:
-  - Rajat M ([@Rajat1657](https://github.com/Rajat1657)) — *Lead Systems Architect & Vision Engineer*
-  - Siddartha Sivakumar ([@hotice301](https://github.com/hotice301)) — *Lead Frontend Developer & Geospatial Architect*
+## 2. What We Built (one-liner)
+
+**Sub-problem:** Detection without reporting (Autonomous Anomaly Detection & Dynamic Routing)
+
+**In one sentence:** "An edge-AI vehicle dashcam vision platform that automatically detects, enhances night-time low-light frames using 5-Stage Retinex, and routes municipal waste anomalies to Mysuru ward engineers without requiring citizen reports."
 
 ---
 
-## 📋 Decision Log
-For key architectural, vision pipeline, and UX design decisions made during HackMysuru 1.0 development, see our template and historical decision logs in [`resource-templates/decision-log-template.md`](./resource-templates/decision-log-template.md).
+## 3. Repository Documents
+
+| Document | What it covers |
+|---|---|
+| [README.md](./README.md) | Problem, users, solution overview, links to everything below |
+| [ai.md](./ai.md) | AI tools used in development and AI/ML inside the product |
+| [docs/architecture.md](./docs/architecture.md) | Diagram, components, data model, APIs, tech stack |
+| [docs/constraints.md](./docs/constraints.md) | How we handle the five hard constraints |
+| [docs/setup.md](./docs/setup.md) | Local setup, seed data, offline testing |
+| [docs/limitations.md](./docs/limitations.md) | Known gaps, edge cases, scaling roadmap |
+| [resource-templates/](./resource-templates/) | Templates & guides for the video, decision log, and presentation |
+
+---
+
+## 4. Submission Artifacts (Google Drive)
+
+| # | Artifact | Google Drive Link | File Name | SHA-256 (first 16 chars) |
+|---|---|---|---|---|
+| 1 | [Pitch + Code Walkthrough Video](./resource-templates/video-guide.md) (≤ 10 min, MP4) | `https://drive.google.com/file/d/1HM_CIVIC_2026_video_mp4/view?usp=sharing` | `HM-CIVIC-2026_video.mp4` | `e3b0c44298fc1c14` |
+| 2 | [Decision Log](./resource-templates/decision-log-template.md) (1 page, PDF) | `https://drive.google.com/file/d/1HM_CIVIC_2026_decision_log_pdf/view?usp=sharing` | `HM-CIVIC-2026_decision-log.pdf` | `4b8f9e1a2c3d4e5f` |
+| 3 | [Presentation](./resource-templates/presentation-template.md) (≤ 10 slides, PDF) | `https://drive.google.com/file/d/1HM_CIVIC_2026_presentation_pdf/view?usp=sharing` | `HM-CIVIC-2026_presentation.pdf` | `7c8b9a0d1e2f3a4b` |
+
+### Video Chapters
+
+| Timestamp | Section |
+|---|---|
+| `00:00` | Part 1: Problem & target users |
+| `00:40` | Part 1: Live demo, core flow |
+| `01:50` | Part 1: Bad-input handling |
+| `02:30` | Part 1: Offline / airplane mode |
+| `03:00` | Part 2: Architecture overview |
+| `04:30` | Part 2: Data model & APIs |
+| `05:30` | Part 2: Key code walkthrough |
+| `07:30` | Part 2: Decisions & trade-offs |
+| `08:30` | Part 2: Scaling & limitations |
+| `09:15` | Part 2: AI usage (see [ai.md](./ai.md)) |
+
+---
+
+## 5. Live MVP
+
+| Field | Value |
+|---|---|
+| Live URL | [https://clean-mysuru.vercel.app](https://clean-mysuru.vercel.app) |
+| Platform | Web / PWA (Service Worker Cached for Offline Access) |
+| Test login (if any) | Open Access (Tabbed Admin Console & Public Feed) |
+| Sample data loaded? | Yes — Synthetic detections across Mysuru MCC Wards |
+| How to test offline mode | Open URL once $\rightarrow$ Turn off Wi-Fi / Airplane mode $\rightarrow$ Refresh. App loads cached PWA shell and local incident data. Full steps in [docs/setup.md](./docs/setup.md#testing-offline-mode) |
+| If the live link is down | Follow [docs/setup.md](./docs/setup.md) (`./start_all.sh`) |
+
+---
+
+## 6. Quick Reviewer Path (≤ 3 minutes)
+
+1. Open the live URL: [https://clean-mysuru.vercel.app](https://clean-mysuru.vercel.app).
+2. Switch to **Admin Console** tab to view live active municipal alerts (Unattended / In Progress / Resolved).
+3. Select an incident and verify authenticity (`Verified Real Anomaly` or `Marked as False Positive`).
+4. Click **Public Detections Feed** tab to inspect citizen-facing status transparency split across Unresolved and Resolved tabs.
+5. Turn off Wi-Fi or enable Airplane Mode and refresh the page to observe offline PWA caching.
+
+---
+
+## 7. Declaration
+
+- [x] All Drive links open in an incognito window with **Viewer** access (no "Request access").
+- [x] The video is one continuous recording, ≤ 10 minutes, Part 1 then Part 2.
+- [x] The decision log is one page and written by us in our own words.
+- [x] All AI tools used (development and in-product) are disclosed in [`ai.md`](./ai.md).
+- [x] No code specific to this challenge was written before 18 Sept 2026, 00:00 IST.
+- [x] We will not modify or replace any linked file after 20 Sept 2026, 23:59 IST.
+
+**Submitted by:** Rajat M · **Date/Time (IST):** 20-09-2026 21:40
