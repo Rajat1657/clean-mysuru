@@ -358,7 +358,7 @@ export default function App() {
             rCanvas.width = width; rCanvas.height = height;
             eCanvas.width = width; eCanvas.height = height;
 
-            if (vElem && vElem.readyState >= 2 && vElem.currentTime > 0) {
+            if (vElem && vElem.readyState >= 2) {
               rCtx.drawImage(vElem, 0, 0, width, height);
               eCtx.drawImage(vElem, 0, 0, width, height);
 
@@ -679,7 +679,7 @@ export default function App() {
         autoPlay 
         playsInline 
         muted 
-        style={{ position: 'absolute', top: '-9999px', left: '-9999px', width: '640px', height: '480px', opacity: 0.001, pointerEvents: 'none' }} 
+        style={{ position: 'absolute', top: 0, left: 0, width: '1px', height: '1px', opacity: 0, pointerEvents: 'none', zIndex: -10 }} 
       />
 
       {/* Toast Sync Notification */}
