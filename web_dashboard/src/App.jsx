@@ -68,8 +68,8 @@ const DEFAULT_INITIAL_DATA = {
     lon: 76.6552,
     jurisdiction: "Ward 14 (Devaraja Market)",
     is_night_mode: false,
-    brightness: 96.5,
-    tally: { "PERSON": 1, "ILLEGAL DUMPING DEBRIS": 2 }
+    brightness: 115.0,
+    tally: { "ILLEGAL DUMPING DEBRIS": 3, "PLASTIC BOTTLES": 5, "STREET LITTER": 2 }
   },
   incidents: [
     {
@@ -121,7 +121,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('live');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncStatusMsg, setSyncStatusMsg] = useState(null);
-  const [cameraMode, setCameraMode] = useState('webcam'); // 'webcam', 'simulated', 'server'
+  const [cameraMode, setCameraMode] = useState('simulated'); // Default to simulated so video always shows instantly!
 
   const [data, setData] = useState(() => {
     const cached = localStorage.getItem('clean_mysuru_alerts');
@@ -192,7 +192,7 @@ export default function App() {
     } catch (e) {}
   };
 
-  // Browser WebCam Live Feed Setup
+  // WebCam Setup
   useEffect(() => {
     let stream = null;
     if (cameraMode === 'webcam') {
@@ -205,7 +205,7 @@ export default function App() {
           }
         })
         .catch((err) => {
-          console.warn("Webcam access denied/unavailable, switching to simulated patrol camera:", err);
+          console.warn("Webcam unavailable, falling back to simulated patrol feed:", err);
           setCameraMode('simulated');
         });
     }
@@ -219,8 +219,6 @@ export default function App() {
 
   // Main 30 FPS Render Loop for Canvases
   useEffect(() => {
-    let lastTime = performance.now();
-
     const renderLoop = (time) => {
       const rCanvas = rawCanvasRef.current;
       const eCanvas = enhancedCanvasRef.current;
@@ -238,50 +236,14 @@ export default function App() {
             rCanvas.width = width; rCanvas.height = height;
             eCanvas.width = width; eCanvas.height = height;
 
-            // Draw real live webcam video to raw canvas
             rCtx.drawImage(vElem, 0, 0, width, height);
-
-            // Draw to enhanced canvas
             eCtx.drawImage(vElem, 0, 0, width, height);
 
-            // Calculate live pixel brightness from frame center
-            try {
-              const imgData = rCtx.getImageData(width * 0.25, height * 0.25, width * 0.5, height * 0.5);
-              let totalBright = 0;
-              for (let i = 0; i < imgData.data.length; i += 4) {
-                totalBright += (imgData.data[i] * 0.299 + imgData.data[i+1] * 0.587 + imgData.data[i+2] * 0.114);
-              }
-              const avgLux = Math.round((totalBright / (imgData.data.length / 4)));
-              const isNightVal = avgLux < 50;
-
-              setData(prev => {
-                if (prev.live_feed?.brightness !== avgLux) {
-                  return {
-                    ...prev,
-                    live_feed: {
-                      ...prev.live_feed,
-                      brightness: avgLux,
-                      is_night_mode: isNightVal,
-                      tally: { "PERSON": 1, "ILLEGAL DUMPING DEBRIS": 2 }
-                    }
-                  };
-                }
-                return prev;
-              });
-
-              if (isNightVal) {
-                eCtx.fillStyle = 'rgba(56, 189, 248, 0.12)';
-                eCtx.fillRect(0, 0, width, height);
-              }
-            } catch (e) {}
-
-            // Real-Time Animated AI Detection Overlay on Live WebCam
             const bx = width * 0.25 + Math.sin(time / 800) * 20;
             const by = height * 0.2 + Math.cos(time / 900) * 10;
             const bw = width * 0.5;
             const bh = height * 0.65;
 
-            // Draw bounding box on person / waste object
             eCtx.strokeStyle = '#00FFCC';
             eCtx.lineWidth = 3;
             eCtx.strokeRect(bx, by, bw, bh);
@@ -292,42 +254,98 @@ export default function App() {
             eCtx.font = 'bold 13px monospace';
             eCtx.fillText('PERSON 0.99', bx + 6, by - 8);
 
-          } else if (cameraMode === 'simulated') {
-            const width = 480;
-            const height = 270;
+          } else {
+            // High-Resolution Animated City Patrol Video Feed Simulation
+            const width = 640;
+            const height = 360;
             rCanvas.width = width; rCanvas.height = height;
             eCanvas.width = width; eCanvas.height = height;
 
-            rCtx.fillStyle = '#0F172A';
-            rCtx.fillRect(0, 0, width, height);
+            // Sky background gradient
+            const skyGrad = rCtx.createLinearGradient(0, 0, 0, height * 0.5);
+            skyGrad.addColorStop(0, '#0F172A');
+            skyGrad.addColorStop(1, '#1E293B');
+            rCtx.fillStyle = skyGrad;
+            rCtx.fillRect(0, 0, width, height * 0.5);
+
+            // City skyline building silhouettes
+            rCtx.fillStyle = '#090D16';
+            for (let i = 0; i < width; i += 40) {
+              const h = 40 + (i % 70);
+              rCtx.fillRect(i, height * 0.5 - h, 35, h);
+            }
+
+            // Road & Sidewalk
             rCtx.fillStyle = '#1E293B';
-            rCtx.fillRect(0, height * 0.55, width, height * 0.45);
-            
-            rCtx.strokeStyle = '#475569';
-            rCtx.setLineDash([15, 15]);
-            rCtx.lineWidth = 3;
+            rCtx.fillRect(0, height * 0.5, width, height * 0.5);
+
+            // Sidewalk curb
+            rCtx.fillStyle = '#334155';
+            rCtx.fillRect(0, height * 0.5, width, 12);
+
+            // Perspective Road Lane Lines (Moving forward)
+            const laneOffset = (time / 15) % 40;
+            rCtx.strokeStyle = '#FACC15';
+            rCtx.setLineDash([20, 20]);
+            rCtx.lineDashOffset = -laneOffset;
+            rCtx.lineWidth = 4;
             rCtx.beginPath();
-            rCtx.moveTo(width / 2, height * 0.55);
+            rCtx.moveTo(width / 2, height * 0.52);
             rCtx.lineTo(width / 2, height);
             rCtx.stroke();
 
+            // Draw Waste Heap / Garbage Pile on Sidewalk
+            const heapX = 180 + Math.sin(time / 1500) * 10;
+            const heapY = height * 0.58;
+
+            rCtx.fillStyle = '#78350F';
+            rCtx.beginPath();
+            rCtx.arc(heapX + 40, heapY + 25, 30, Math.PI, 0);
+            rCtx.fill();
+
+            rCtx.fillStyle = '#065F46';
+            rCtx.fillRect(heapX + 15, heapY + 10, 20, 15);
+            rCtx.fillStyle = '#1E40AF';
+            rCtx.fillRect(heapX + 45, heapY + 5, 25, 20);
+
+            // Copy to enhanced feed canvas
             eCtx.drawImage(rCanvas, 0, 0);
+
+            // AI Enhancement Overlay Shader
             eCtx.fillStyle = 'rgba(14, 165, 233, 0.08)';
             eCtx.fillRect(0, 0, width, height);
 
-            const boxX = 140 + Math.sin(time / 1000) * 20;
-            const boxY = 120 + Math.cos(time / 1200) * 8;
-
+            // Bounding Box 1: Illegal Garbage Dumping
             eCtx.strokeStyle = '#00FFCC';
-            eCtx.lineWidth = 2.5;
+            eCtx.lineWidth = 3;
             eCtx.setLineDash([]);
-            eCtx.strokeRect(boxX, boxY, 120, 85);
+            eCtx.strokeRect(heapX, heapY - 10, 90, 65);
 
             eCtx.fillStyle = '#00FFCC';
-            eCtx.fillRect(boxX, boxY - 22, 175, 22);
+            eCtx.fillRect(heapX, heapY - 34, 185, 24);
             eCtx.fillStyle = '#000000';
+            eCtx.font = 'bold 12px monospace';
+            eCtx.fillText('ILLEGAL DEBRIS 94%', heapX + 6, heapY - 18);
+
+            // Bounding Box 2: Plastic Litter
+            const box2X = heapX + 110;
+            const box2Y = heapY + 15;
+            eCtx.strokeStyle = '#F43F5E';
+            eCtx.lineWidth = 2.5;
+            eCtx.strokeRect(box2X, box2Y, 65, 40);
+
+            eCtx.fillStyle = '#F43F5E';
+            eCtx.fillRect(box2X, box2Y - 22, 140, 22);
+            eCtx.fillStyle = '#FFFFFF';
             eCtx.font = 'bold 11px monospace';
-            eCtx.fillText('ILLEGAL DEBRIS 94%', boxX + 4, boxY - 6);
+            eCtx.fillText('PLASTIC BOTTLES 88%', box2X + 4, box2Y - 6);
+
+            // Telemetry Overlay Stamp
+            eCtx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+            eCtx.fillRect(10, 10, 220, 24);
+            eCtx.fillStyle = '#38BDF8';
+            eCtx.font = 'bold 11px monospace';
+            eCtx.fillText(`LIVE PATROL: ${new Date().toLocaleTimeString()}`, 18, 26);
           }
         }
       }
@@ -340,7 +358,7 @@ export default function App() {
     };
   }, [cameraMode]);
 
-  // Server Polling for backend Flask ROS 2 feed (when server mode active)
+  // Server Polling
   useEffect(() => {
     if (cameraMode !== 'server') return;
 
@@ -457,7 +475,7 @@ export default function App() {
 
   const liveFeed = data.live_feed || {};
   const incidents = data.incidents || [];
-  const tally = liveFeed.tally || { "PERSON": 1, "ILLEGAL DUMPING DEBRIS": 2 };
+  const tally = liveFeed.tally || { "ILLEGAL DUMPING DEBRIS": 3, "PLASTIC BOTTLES": 5 };
 
   const filteredIncidents = incidents.filter(inc => {
     if (selectedWard !== 'All' && inc.jurisdiction !== selectedWard) return false;
@@ -477,7 +495,7 @@ export default function App() {
   const centerLat = liveFeed.lat || 12.3052;
   const centerLon = liveFeed.lon || 76.6552;
   const isNight = liveFeed.is_night_mode || false;
-  const brightness = liveFeed.brightness || 96.5;
+  const brightness = liveFeed.brightness || 115.0;
 
   const countUnattended = incidents.filter(i => (i.status || 'Detected') === 'Detected').length;
   const countInProgress = incidents.filter(i => i.status === 'In Progress (Crew Dispatched)').length;
@@ -487,7 +505,6 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#090D16] text-slate-100 flex flex-col font-sans relative">
       
-      {/* Hidden WebCam video element for 30FPS stream capture */}
       <video ref={videoRef} autoPlay playsInline muted className="hidden" />
 
       {/* Toast Sync Notification */}
@@ -630,18 +647,7 @@ export default function App() {
                       <Camera className="w-5 h-5 text-cyan-400" /> Live Dashcam Feed
                     </h3>
 
-                    {/* Camera Feed Mode Toggle Selector */}
                     <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-xl border border-slate-800">
-                      <button
-                        onClick={() => setCameraMode('webcam')}
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                          cameraMode === 'webcam' 
-                            ? 'bg-cyan-500 text-slate-950 shadow-md' 
-                            : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        <Video className="w-3.5 h-3.5" /> WebCam AI Stream
-                      </button>
                       <button
                         onClick={() => setCameraMode('simulated')}
                         className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
@@ -651,6 +657,16 @@ export default function App() {
                         }`}
                       >
                         <Cpu className="w-3.5 h-3.5" /> AI Demo Patrol
+                      </button>
+                      <button
+                        onClick={() => setCameraMode('webcam')}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                          cameraMode === 'webcam' 
+                            ? 'bg-cyan-500 text-slate-950 shadow-md' 
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <Video className="w-3.5 h-3.5" /> WebCam Stream
                       </button>
                       <button
                         onClick={() => setCameraMode('server')}
