@@ -229,7 +229,7 @@ export default function App() {
   useEffect(() => {
     const fetchCloudData = async () => {
       try {
-        const res = await fetch(CLOUD_SYNC_URL);
+        const res = await fetch(`${CLOUD_SYNC_URL}?t=${Date.now()}`, { cache: 'no-store' });
         if (res.ok) {
           const json = await res.json();
           if (json.data && json.data.incidents) {
