@@ -15,7 +15,6 @@ class VideoPublisher(Node):
 
         self.using_webcam = False
         if use_webcam:
-            # Auto-scan camera device indices [0, 1, 2, 4]
             for dev_id in [0, 1, 2, 4]:
                 self.get_logger().info(f"Scanning camera device index {dev_id}...")
                 cap_test = cv2.VideoCapture(dev_id)
@@ -24,7 +23,7 @@ class VideoPublisher(Node):
                     if ret and test_frame is not None and test_frame.size > 0:
                         self.cap = cap_test
                         self.using_webcam = True
-                        self.get_logger().info(f"SUCCESS: Connected to live laptop camera at index {dev_id} ({test_frame.shape[1]}x{test_frame.shape[0]})!")
+                        self.get_logger().info(f"SUCCESS: Connected to live laptop camera at index {dev_id} ({test_frame.shape[1]}x{test_frame.shape[0]}) at 30 FPS!")
                         break
                     cap_test.release()
 
@@ -39,7 +38,8 @@ class VideoPublisher(Node):
             self.cap = cv2.VideoCapture(video_path)
             self.get_logger().info(f"Streaming from synthetic night video file: {video_path}")
 
-        self.fps = 15.0
+        # Set to 30.0 FPS for smooth 30 FPS video streaming
+        self.fps = 30.0
         self.timer = self.create_timer(1.0 / self.fps, self.timer_callback)
 
     def timer_callback(self):

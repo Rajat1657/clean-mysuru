@@ -7,6 +7,34 @@ import {
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
+// Mysore Palace Architectural Outline SVG Component
+const MysorePalaceLogo = () => (
+  <svg className="w-8 h-8 text-cyan-400" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    {/* Base Foundation */}
+    <path d="M10 85 H90 V90 H10 Z" fill="currentColor" fillOpacity="0.1" />
+    {/* Lower Arches Arcade */}
+    <path d="M15 85 V65 H85 V85" />
+    <path d="M20 85 V72 C20 68 28 68 28 72 V85" />
+    <path d="M34 85 V72 C34 68 42 68 42 72 V85" />
+    <path d="M48 85 V68 C48 62 52 62 52 68 V85" />
+    <path d="M58 85 V72 C58 68 66 68 66 72 V85" />
+    <path d="M72 85 V72 C72 68 80 68 80 72 V85" />
+    {/* Middle Story & Pillars */}
+    <path d="M18 65 V45 H82 V65" />
+    <path d="M25 65 V50 M35 65 V50 M45 65 V50 M55 65 V50 M65 65 V50 M75 65 V50" strokeWidth="1.5" />
+    {/* Central Grand Dome */}
+    <path d="M42 45 C42 25 58 25 58 45 Z" fill="currentColor" fillOpacity="0.2" />
+    <path d="M50 25 V18" />
+    <circle cx="50" cy="16" r="2" fill="currentColor" />
+    {/* Left Flank Dome */}
+    <path d="M15 45 C15 32 28 32 28 45 Z" fill="currentColor" fillOpacity="0.15" />
+    <path d="M21.5 32 V27" />
+    {/* Right Flank Dome */}
+    <path d="M72 45 C72 32 85 32 85 45 Z" fill="currentColor" fillOpacity="0.15" />
+    <path d="M78.5 32 V27" />
+  </svg>
+);
+
 const redIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
@@ -25,7 +53,6 @@ const orangeIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
-// Helper component to invalidate map size so it fills container 100% without half-loaded tile glitches
 function MapResizer({ center }) {
   const map = useMap();
   useEffect(() => {
@@ -67,7 +94,7 @@ export default function App() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 1000);
+    const interval = setInterval(fetchData, 100); // 100ms polling for smooth stream
     return () => clearInterval(interval);
   }, []);
 
@@ -100,6 +127,7 @@ export default function App() {
 
   const liveFeed = data.live_feed || {};
   const incidents = data.incidents || [];
+  const tally = liveFeed.tally || {};
 
   const filteredIncidents = incidents.filter(inc => {
     if (selectedWard !== 'All' && inc.jurisdiction !== selectedWard) return false;
@@ -118,14 +146,14 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#090D16] text-slate-100 flex flex-col font-sans">
       
-      {/* HEADER NAVBAR */}
+      {/* HEADER NAVBAR WITH MYSORE PALACE OUTLINE LOGO */}
       <header className="sticky top-0 z-50 glass-panel border-b border-slate-800/80 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-gradient-to-tr from-cyan-600 to-blue-600 shadow-lg shadow-cyan-500/20">
-            <ShieldAlert className="w-6 h-6 text-white" />
+          <div className="p-2 rounded-xl bg-gradient-to-tr from-cyan-600/30 to-blue-600/30 border border-cyan-500/40 shadow-lg shadow-cyan-500/10">
+            <MysorePalaceLogo />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            <h1 className="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
               Clean Mysuru
             </h1>
           </div>
@@ -225,37 +253,74 @@ export default function App() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               
               {/* Dual Stream Video Feed */}
-              <div className="lg:col-span-7 glass-panel p-5 rounded-2xl space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Camera className="w-5 h-5 text-cyan-400" /> Real-Time Dashcam Stream & Vision Core
-                  </h3>
-                  <span className="text-xs text-slate-400 font-mono">15 FPS Live Stream</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <span className="text-xs font-semibold text-slate-400">Raw Input Camera Stream</span>
-                    <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
-                      {liveFeed.raw_frame_b64 ? (
-                        <img src={`data:image/jpeg;base64,${liveFeed.raw_frame_b64}`} alt="Raw Stream" className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-xs text-slate-500 animate-pulse">Connecting to /dashcam/image_raw...</span>
-                      )}
-                    </div>
+              <div className="lg:col-span-7 glass-panel p-5 rounded-2xl space-y-4 flex flex-col justify-between">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                      <Camera className="w-5 h-5 text-cyan-400" /> Real-Time Dashcam Stream & Vision Core
+                    </h3>
+                    <span className="text-xs text-emerald-400 font-mono font-bold flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                      30 FPS Ultra Stream
+                    </span>
                   </div>
 
-                  <div className="space-y-2">
-                    <span className="text-xs font-semibold text-slate-400">Vision Core Output (5-Stage Retinex)</span>
-                    <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
-                      {liveFeed.enhanced_frame_b64 ? (
-                        <img src={`data:image/jpeg;base64,${liveFeed.enhanced_frame_b64}`} alt="Vision Output" className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-xs text-slate-500 animate-pulse">Processing vision core output...</span>
-                      )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <span className="text-xs font-semibold text-slate-400">Raw Input Camera Stream</span>
+                      <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
+                        {liveFeed.raw_frame_b64 ? (
+                          <img src={`data:image/jpeg;base64,${liveFeed.raw_frame_b64}`} alt="Raw Stream" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-xs text-slate-500 animate-pulse">Connecting to /dashcam/image_raw...</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <span className="text-xs font-semibold text-slate-400">Vision Core Output (5-Stage Retinex)</span>
+                      <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
+                        {liveFeed.enhanced_frame_b64 ? (
+                          <img src={`data:image/jpeg;base64,${liveFeed.enhanced_frame_b64}`} alt="Vision Output" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-xs text-slate-500 animate-pulse">Processing vision core output...</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
+
+                {/* LIVE OBJECT DETECTION TALLY TICKER (Under Camera Stream) */}
+                <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-3">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                    <Eye className="w-4 h-4 text-cyan-400" /> Live Detection Tally:
+                  </span>
+                  
+                  <div className="flex flex-wrap items-center gap-2">
+                    {Object.keys(tally).length > 0 ? (
+                      Object.entries(tally).map(([objLabel, count], idx) => (
+                        <span 
+                          key={idx} 
+                          className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${
+                            objLabel.includes('ILLEGAL') || objLabel.includes('DEBRIS')
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                              : objLabel.includes('PERSON')
+                              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                              : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                          }`}
+                        >
+                          <span>{objLabel}</span>
+                          <span className="px-1.5 py-0.2 rounded bg-slate-950 font-black text-white">{count}</span>
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-slate-500 font-semibold px-3 py-1 rounded-lg bg-slate-950 border border-slate-800">
+                        0 Objects Detected
+                      </span>
+                    )}
+                  </div>
+                </div>
+
               </div>
 
               {/* Leaflet Map & GPS Location */}

@@ -8,6 +8,7 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from std_msgs.msg import String
+from collections import Counter
 
 from mysuru_clean_vision.vision_engine import WasteDetector
 from mysuru_clean_vision.jurisdiction_router import JurisdictionRouter
@@ -68,11 +69,18 @@ class DetectionNode(Node):
         current_time_str = time.strftime('%H:%M:%S')
         now_ts = time.time()
 
-        # Generate base64 strings for live feed display
-        _, live_raw_enc = cv2.imencode('.jpg', raw_frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
-        _, live_ann_enc = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 75])
+        _, live_raw_enc = cv2.imencode('.jpg', raw_frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+        _, live_ann_enc = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
         live_raw_b64 = base64.b64encode(live_raw_enc).decode('utf-8')
         live_ann_b64 = base64.b64encode(live_ann_enc).decode('utf-8')
+
+        # Build live frame object tally count
+        tally_counter = Counter()
+        for d in detections:
+            lbl = d.get('label', 'object').upper()
+            tally_counter[lbl] += 1
+        
+        tally_dict = dict(tally_counter)
 
         user_mods = self.load_existing_user_modifications()
 
@@ -85,22 +93,19 @@ class DetectionNode(Node):
             existing_incident = self.active_incidents.get(dedup_key)
 
             if existing_incident and (now_ts - existing_incident['last_seen_ts'] <= self.dedup_window_sec):
-                # Truck is lingering: update timestamps and occurrences ONLY
-                # DO NOT overwrite proof photos! They remain permanently locked!
                 existing_incident['last_updated'] = current_time_str
                 existing_incident['last_seen_ts'] = now_ts
                 existing_incident['occurrences'] += 1
                 existing_incident['waste_volume'] = max(existing_incident['waste_volume'], float(waste_volume))
                 existing_incident['urgency_score'] = max(existing_incident['urgency_score'], urgency_score)
             else:
-                # Capture 3 locked photo proofs from this EXACT SAME MOMENT IN TIME
-                _, p1_enc = cv2.imencode('.jpg', raw_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
-                _, p2_enc = cv2.imencode('.jpg', enhanced_clean_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
-                _, p3_enc = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                _, p1_enc = cv2.imencode('.jpg', raw_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                _, p2_enc = cv2.imencode('.jpg', enhanced_clean_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                _, p3_enc = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
 
-                proof1_b64 = base64.b64encode(p1_enc).decode('utf-8') # Proof 1: Clean Raw (No BBox)
-                proof2_b64 = base64.b64encode(p2_enc).decode('utf-8') # Proof 2: Clean Retinex Enhanced (NO BBox)
-                proof3_b64 = base64.b64encode(p3_enc).decode('utf-8') # Proof 3: YOLO Bounding Box Overlay
+                proof1_b64 = base64.b64encode(p1_enc).decode('utf-8')
+                proof2_b64 = base64.b64encode(p2_enc).decode('utf-8')
+                proof3_b64 = base64.b64encode(p3_enc).decode('utf-8')
 
                 incident_id = f"INC-{int(now_ts) % 10000:04d}"
                 mods = user_mods.get(incident_id, {})
@@ -140,7 +145,6 @@ class DetectionNode(Node):
                 self.alert_publisher.publish(alert_msg)
                 self.get_logger().info(f"[NEW INCIDENT DETECTED] ID: {incident_id} | Urgency: {urgency_score} | Authority: {self.current_authority}")
 
-        # Preserve officer edits
         for inc in self.active_incidents.values():
             iid = inc['incident_id']
             if iid in user_mods:
@@ -165,6 +169,7 @@ class DetectionNode(Node):
                 'is_night_mode': is_night_mode,
                 'brightness': brightness,
                 'detections_count': len(detections),
+                'tally': tally_dict,
                 'waste_volume': float(waste_volume),
                 'lat': self.current_lat,
                 'lon': self.current_lon,
