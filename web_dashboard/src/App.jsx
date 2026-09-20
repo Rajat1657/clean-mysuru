@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import * as tf from '@tensorflow/tfjs';
+import * as cocoSsd from '@tensorflow-models/coco-ssd';
 
 // Accurate Mysore Palace Outline SVG
 const MysorePalaceLogo = () => (
@@ -124,6 +126,64 @@ export default function App() {
   const [webcamActive, setWebcamActive] = useState(false);
   const [videoDevices, setVideoDevices] = useState([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
+
+  const [currentGps, setCurrentGps] = useState({ lat: 12.3052, lon: 76.6552, ward: 'Ward 14 (Devaraja Market)' });
+  const currentGpsRef = useRef(currentGps);
+  const modelRef = useRef(null);
+  const detectionsRef = useRef([]);
+  const lastLogTimeRef = useRef(0);
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      const watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          const newGps = { lat, lon, ward: 'Ward 14 (Live GPS)' };
+          setCurrentGps(newGps);
+          currentGpsRef.current = newGps;
+        },
+        (error) => console.warn("GPS error", error),
+        { enableHighAccuracy: true }
+      );
+      return () => navigator.geolocation.clearWatch(watchId);
+    }
+  }, []);
+
+  useEffect(() => {
+    const loadModel = async () => {
+      try {
+        await tf.ready();
+        modelRef.current = await cocoSsd.load();
+      } catch (e) {
+        console.error("TFJS load err", e);
+      }
+    };
+    loadModel();
+  }, []);
+
+  useEffect(() => {
+    let timeoutId;
+    let isMounted = true;
+    const detectLoop = async () => {
+      if (cameraMode === 'webcam' && videoRef.current && modelRef.current && videoRef.current.readyState >= 2) {
+        try {
+          const preds = await modelRef.current.detect(videoRef.current);
+          detectionsRef.current = preds;
+          
+          const wasteClasses = ['bottle', 'cup', 'chair', 'car', 'truck', 'person', 'cell phone'];
+          const found = preds.find(p => wasteClasses.includes(p.class) && p.score > 0.55);
+          if (found && Date.now() - lastLogTimeRef.current > 7000) {
+            triggerOfflineDetectionLog(found.class);
+            lastLogTimeRef.current = Date.now();
+          }
+        } catch(e) {}
+      }
+      if (isMounted) timeoutId = setTimeout(detectLoop, 200);
+    };
+    detectLoop();
+    return () => { isMounted = false; clearTimeout(timeoutId); };
+  }, [cameraMode]);
 
   useEffect(() => {
     const getDevices = async () => {
@@ -260,20 +320,25 @@ export default function App() {
               rCtx.drawImage(vElem, 0, 0, width, height);
               eCtx.drawImage(vElem, 0, 0, width, height);
 
-              const bx = width * 0.25 + Math.sin(time / 800) * 20;
-              const by = height * 0.2 + Math.cos(time / 900) * 10;
-              const bw = width * 0.5;
-              const bh = height * 0.65;
-
-              eCtx.strokeStyle = '#00FFCC';
-              eCtx.lineWidth = 3;
-              eCtx.strokeRect(bx, by, bw, bh);
-
-              eCtx.fillStyle = '#00FFCC';
-              eCtx.fillRect(bx, by - 26, 160, 26);
-              eCtx.fillStyle = '#000000';
-              eCtx.font = 'bold 13px monospace';
-              eCtx.fillText('PERSON 0.99', bx + 6, by - 8);
+              const preds = detectionsRef.current || [];
+              if (preds.length === 0) {
+                eCtx.fillStyle = 'rgba(0, 255, 204, 0.2)';
+                eCtx.fillRect(10, height - 30, 220, 20);
+                eCtx.fillStyle = '#00FFCC';
+                eCtx.font = 'bold 12px monospace';
+                eCtx.fillText('Scanning for objects...', 15, height - 15);
+              }
+              preds.forEach(p => {
+                const [x, y, w, h] = p.bbox;
+                eCtx.strokeStyle = '#00FFCC';
+                eCtx.lineWidth = 3;
+                eCtx.strokeRect(x, y, w, h);
+                eCtx.fillStyle = '#00FFCC';
+                eCtx.fillRect(x, Math.max(0, y - 22), 180, 22);
+                eCtx.fillStyle = '#000000';
+                eCtx.font = 'bold 11px monospace';
+                eCtx.fillText(`${p.class.toUpperCase()} ${(p.score*100).toFixed(0)}%`, x + 6, Math.max(14, y - 6));
+              });
             } else {
               rCtx.fillStyle = '#090D16';
               rCtx.fillRect(0, 0, width, height);
@@ -470,28 +535,31 @@ export default function App() {
     showToast("🗑️ Incident deleted locally.");
   };
 
-  const triggerOfflineDetectionLog = () => {
+  const triggerOfflineDetectionLog = (objectClass = 'Anomaly') => {
     const newId = `INC-MYS-${Math.floor(1000 + Math.random() * 9000)}`;
+    const gps = currentGpsRef.current || { lat: 12.3052, lon: 76.6552, ward: 'Ward 14 (Devaraja Market)' };
     const newInc = {
       incident_id: newId,
-      jurisdiction: "Ward 12 (KRS Road)",
-      lat: 12.3120 + (Math.random() - 0.5) * 0.01,
-      lon: 76.6400 + (Math.random() - 0.5) * 0.01,
-      urgency_score: Math.floor(20 + Math.random() * 35),
-      waste_volume: 0.25,
+      jurisdiction: gps.ward,
+      lat: gps.lat + (Math.random() - 0.5) * 0.0005,
+      lon: gps.lon + (Math.random() - 0.5) * 0.0005,
+      urgency_score: Math.floor(30 + Math.random() * 55),
+      waste_volume: 0.45,
       occurrences: 1,
       verification_status: "Pending Verification",
       status: "Detected",
-      officer_notes: "Logged via camera detection engine.",
+      officer_notes: `Auto-Detected: ${typeof objectClass === 'string' ? objectClass.toUpperCase() : 'DEBRIS'} via real-time camera engine.`,
       first_detected: new Date().toLocaleString(),
       last_updated: new Date().toLocaleString()
     };
 
-    const updatedIncidents = [newInc, ...data.incidents];
-    const updatedData = { ...data, incidents: updatedIncidents };
-    setData(updatedData);
-    localStorage.setItem('clean_mysuru_alerts', JSON.stringify(updatedData));
-    saveToOfflineQueue(updatedData);
+    setData(prevData => {
+      const updatedIncidents = [newInc, ...prevData.incidents];
+      const updatedData = { ...prevData, incidents: updatedIncidents };
+      localStorage.setItem('clean_mysuru_alerts', JSON.stringify(updatedData));
+      saveToOfflineQueue(updatedData);
+      return updatedData;
+    });
     showToast(`⚡ Logged Anomaly: ${newId}`);
   };
 
@@ -514,8 +582,8 @@ export default function App() {
     return true;
   });
 
-  const centerLat = liveFeed.lat || 12.3052;
-  const centerLon = liveFeed.lon || 76.6552;
+  const centerLat = currentGps.lat;
+  const centerLon = currentGps.lon;
   const isNight = liveFeed.is_night_mode || false;
   const brightness = liveFeed.brightness || 115.0;
 
@@ -797,7 +865,7 @@ export default function App() {
                 <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1">
                   <span className="text-xs text-slate-400">Current Vehicle Jurisdiction</span>
                   <div className="text-sm font-bold text-cyan-300">
-                    {liveFeed.jurisdiction || 'Ward 14 (Devaraja Market)'}
+                    {currentGps.ward}
                   </div>
                   <div className="text-xs text-slate-500 font-mono">
                     Coordinates: ({centerLat}, {centerLon})
