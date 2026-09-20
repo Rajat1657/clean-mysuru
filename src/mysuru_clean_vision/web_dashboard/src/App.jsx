@@ -88,12 +88,55 @@ export default function App() {
   const [workflowTab, setWorkflowTab] = useState('All'); // 3 Workflow Tabs: 'All', 'Detected', 'In Progress', 'Resolved'
   const [searchQuery, setSearchQuery] = useState('');
 
+  const rawCanvasRef = React.useRef(null);
+  const enhancedCanvasRef = React.useRef(null);
+
   const fetchData = async () => {
     try {
       const res = await fetch('http://localhost:5000/api/alerts');
       if (res.ok) {
         const json = await res.json();
-        setData(json);
+        
+        // Fast direct canvas frame drawing to prevent React DOM re-renders and element blinking
+        if (json.live_feed?.raw_frame_b64 && rawCanvasRef.current) {
+          const img1 = new Image();
+          img1.src = `data:image/jpeg;base64,${json.live_feed.raw_frame_b64}`;
+          img1.onload = () => {
+            const ctx1 = rawCanvasRef.current?.getContext('2d');
+            if (ctx1) {
+              rawCanvasRef.current.width = img1.width;
+              rawCanvasRef.current.height = img1.height;
+              ctx1.drawImage(img1, 0, 0);
+            }
+          };
+        }
+
+        if (json.live_feed?.enhanced_frame_b64 && enhancedCanvasRef.current) {
+          const img2 = new Image();
+          img2.src = `data:image/jpeg;base64,${json.live_feed.enhanced_frame_b64}`;
+          img2.onload = () => {
+            const ctx2 = enhancedCanvasRef.current?.getContext('2d');
+            if (ctx2) {
+              enhancedCanvasRef.current.width = img2.width;
+              enhancedCanvasRef.current.height = img2.height;
+              ctx2.drawImage(img2, 0, 0);
+            }
+          };
+        }
+
+        // Diff data state to avoid needless re-render flicker
+        setData(prev => {
+          const prevIncStr = JSON.stringify(prev.incidents);
+          const newIncStr = JSON.stringify(json.incidents || []);
+          const prevTallyStr = JSON.stringify(prev.live_feed?.tally || {});
+          const newTallyStr = JSON.stringify(json.live_feed?.tally || {});
+
+          if (prevIncStr === newIncStr && prevTallyStr === newTallyStr && prev.live_feed?.is_night_mode === json.live_feed?.is_night_mode) {
+            return { ...prev, live_feed: { ...prev.live_feed, ...json.live_feed } };
+          }
+          return json;
+        });
+
         localStorage.setItem('clean_mysuru_alerts', JSON.stringify(json));
       }
     } catch (e) {
@@ -307,22 +350,20 @@ export default function App() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <span className="text-xs font-semibold text-slate-400">Raw Input Camera Stream</span>
-                      <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
-                        {liveFeed.raw_frame_b64 ? (
-                          <img src={`data:image/jpeg;base64,${liveFeed.raw_frame_b64}`} alt="Raw Stream" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-xs text-slate-500 animate-pulse">Connecting to /dashcam/image_raw...</span>
+                      <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center relative">
+                        <canvas ref={rawCanvasRef} className="w-full h-full object-cover" />
+                        {!liveFeed.raw_frame_b64 && (
+                          <span className="text-xs text-slate-500 animate-pulse absolute">Connecting to /dashcam/image_raw...</span>
                         )}
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <span className="text-xs font-semibold text-slate-400">Vision Core Output (5-Stage Retinex)</span>
-                      <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
-                        {liveFeed.enhanced_frame_b64 ? (
-                          <img src={`data:image/jpeg;base64,${liveFeed.enhanced_frame_b64}`} alt="Vision Output" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-xs text-slate-500 animate-pulse">Processing vision core output...</span>
+                      <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center relative">
+                        <canvas ref={enhancedCanvasRef} className="w-full h-full object-cover" />
+                        {!liveFeed.enhanced_frame_b64 && (
+                          <span className="text-xs text-slate-500 animate-pulse absolute">Processing vision core output...</span>
                         )}
                       </div>
                     </div>
