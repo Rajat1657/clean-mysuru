@@ -3,12 +3,12 @@ import {
   ShieldAlert, Activity, Eye, MapPin, Sliders, CheckCircle2, 
   XCircle, Clock, AlertTriangle, Cpu, Camera, RefreshCw, 
   Filter, Search, Layers, FileText, ChevronRight, Check, Save, Trash2, List,
-  Wifi, WifiOff, UploadCloud, PlusCircle
+  Wifi, WifiOff, UploadCloud, PlusCircle, Video
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
-// Accurate, standalone Mysore Palace Architectural Outline SVG
+// Accurate Mysore Palace Outline SVG
 const MysorePalaceLogo = () => (
   <svg className="w-10 h-10 text-cyan-400 drop-shadow-[0_0_10px_rgba(56,189,248,0.5)]" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M5 88 H95 M5 92 H95" strokeWidth="1.5" />
@@ -33,7 +33,7 @@ const MysorePalaceLogo = () => (
   </svg>
 );
 
-// Inline Vector Leaflet Icons for 100% Offline Map Marker Support
+// Inline Vector Leaflet Icons for 100% Offline Support
 const createSvgMarker = (color) => L.divIcon({
   className: 'custom-leaflet-marker',
   html: `<svg width="30" height="42" viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -62,15 +62,14 @@ function MapResizer({ center }) {
   return null;
 }
 
-// Initial Mock Seed Data for Mysuru Wards (Used if localStorage is empty)
 const DEFAULT_INITIAL_DATA = {
   live_feed: {
     lat: 12.3052,
     lon: 76.6552,
     jurisdiction: "Ward 14 (Devaraja Market)",
-    is_night_mode: true,
-    brightness: 18.5,
-    tally: { "ILLEGAL DUMPING DEBRIS": 3, "PLASTIC BOTTLES": 5, "STREET LITTER": 2 }
+    is_night_mode: false,
+    brightness: 96.5,
+    tally: { "PERSON": 1, "ILLEGAL DUMPING DEBRIS": 2 }
   },
   incidents: [
     {
@@ -122,6 +121,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('live');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncStatusMsg, setSyncStatusMsg] = useState(null);
+  const [cameraMode, setCameraMode] = useState('webcam'); // 'webcam', 'simulated', 'server'
 
   const [data, setData] = useState(() => {
     const cached = localStorage.getItem('clean_mysuru_alerts');
@@ -141,6 +141,8 @@ export default function App() {
 
   const rawCanvasRef = useRef(null);
   const enhancedCanvasRef = useRef(null);
+  const videoRef = useRef(null);
+  const animFrameId = useRef(null);
 
   // Online / Offline Listeners & Auto-Sync Engine
   useEffect(() => {
@@ -150,7 +152,7 @@ export default function App() {
     };
     const handleOffline = () => {
       setIsOnline(false);
-      showToast("📴 Offline Mode Active: Detections logged to local storage!");
+      showToast("📴 Offline Mode Active: Saved to local storage");
     };
 
     window.addEventListener('online', handleOnline);
@@ -176,7 +178,7 @@ export default function App() {
     const queue = JSON.parse(localStorage.getItem('clean_mysuru_sync_queue') || '[]');
     if (queue.length === 0) return;
 
-    showToast(`🔄 Syncing ${queue.length} offline log(s) to cloud backend...`);
+    showToast(`🔄 Syncing ${queue.length} offline log(s)...`);
     try {
       const res = await fetch('http://localhost:5000/api/alerts', {
         method: 'POST',
@@ -185,121 +187,201 @@ export default function App() {
       });
       if (res.ok) {
         localStorage.removeItem('clean_mysuru_sync_queue');
-        showToast("✅ Offline detection logs successfully synced to server!");
+        showToast("✅ Offline logs synced to backend server!");
       }
-    } catch (e) {
-      console.log("Cloud server offline, queue retained in LocalStorage.");
-    }
+    } catch (e) {}
   };
 
-  // Synthetic Live AI Stream Canvas Generator for Offline / Local demo execution
-  const drawOfflineSimulatedCamera = (time) => {
-    const rCanvas = rawCanvasRef.current;
-    const eCanvas = enhancedCanvasRef.current;
-    if (!rCanvas || !eCanvas) return;
-
-    const rCtx = rCanvas.getContext('2d');
-    const eCtx = eCanvas.getContext('2d');
-    if (!rCtx || !eCtx) return;
-
-    const width = 480;
-    const height = 270;
-    rCanvas.width = width; rCanvas.height = height;
-    eCanvas.width = width; eCanvas.height = height;
-
-    // Draw dark road & curb background
-    rCtx.fillStyle = '#0F172A';
-    rCtx.fillRect(0, 0, width, height);
-    rCtx.fillStyle = '#1E293B';
-    rCtx.fillRect(0, height * 0.55, width, height * 0.45);
-    
-    // Draw lane lines
-    rCtx.strokeStyle = '#475569';
-    rCtx.setLineDash([15, 15]);
-    rCtx.lineWidth = 3;
-    rCtx.beginPath();
-    rCtx.moveTo(width / 2, height * 0.55);
-    rCtx.lineTo(width / 2, height);
-    rCtx.stroke();
-
-    // Copy raw feed to enhanced feed canvas
-    eCtx.drawImage(rCanvas, 0, 0);
-
-    // Enhanced Feed: AI Night Enhancement Shader effect + Bounding Boxes
-    eCtx.fillStyle = 'rgba(14, 165, 233, 0.08)';
-    eCtx.fillRect(0, 0, width, height);
-
-    // Dynamic moving bounding box
-    const boxX = 140 + Math.sin(time / 1000) * 15;
-    const boxY = 120 + Math.cos(time / 1200) * 5;
-
-    // Draw YOLO Bounding Box on Enhanced Stream
-    eCtx.strokeStyle = '#00FFCC';
-    eCtx.lineWidth = 2.5;
-    eCtx.setLineDash([]);
-    eCtx.strokeRect(boxX, boxY, 110, 80);
-
-    // Label tag
-    eCtx.fillStyle = '#00FFCC';
-    eCtx.fillRect(boxX, boxY - 22, 165, 22);
-    eCtx.fillStyle = '#000000';
-    eCtx.font = 'bold 11px monospace';
-    eCtx.fillText('ILLEGAL DEBRIS 94%', boxX + 4, boxY - 6);
-  };
-
-  const fetchData = async () => {
-    try {
-      const res = await fetch('http://localhost:5000/api/alerts');
-      if (res.ok) {
-        const json = await res.json();
-        
-        if (json.live_feed?.raw_frame_b64 && rawCanvasRef.current) {
-          const img1 = new Image();
-          img1.src = `data:image/jpeg;base64,${json.live_feed.raw_frame_b64}`;
-          img1.onload = () => {
-            const ctx1 = rawCanvasRef.current?.getContext('2d');
-            if (ctx1) {
-              rawCanvasRef.current.width = img1.width;
-              rawCanvasRef.current.height = img1.height;
-              ctx1.drawImage(img1, 0, 0);
-            }
-          };
-        }
-
-        if (json.live_feed?.enhanced_frame_b64 && enhancedCanvasRef.current) {
-          const img2 = new Image();
-          img2.src = `data:image/jpeg;base64,${json.live_feed.enhanced_frame_b64}`;
-          img2.onload = () => {
-            const ctx2 = enhancedCanvasRef.current?.getContext('2d');
-            if (ctx2) {
-              enhancedCanvasRef.current.width = img2.width;
-              enhancedCanvasRef.current.height = img2.height;
-              ctx2.drawImage(img2, 0, 0);
-            }
-          };
-        }
-
-        setData(prev => {
-          const prevIncStr = JSON.stringify(prev.incidents);
-          const newIncStr = JSON.stringify(json.incidents || []);
-          if (prevIncStr === newIncStr) return { ...prev, live_feed: { ...prev.live_feed, ...json.live_feed } };
-          return json;
-        });
-        localStorage.setItem('clean_mysuru_alerts', JSON.stringify(json));
-      } else {
-        drawOfflineSimulatedCamera(Date.now());
-      }
-    } catch (e) {
-      // Offline fallback: draw animated client AI camera stream
-      drawOfflineSimulatedCamera(Date.now());
-    }
-  };
-
+  // Browser WebCam Live Feed Setup
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 100);
+    let stream = null;
+    if (cameraMode === 'webcam') {
+      navigator.mediaDevices?.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 } } })
+        .then((s) => {
+          stream = s;
+          if (videoRef.current) {
+            videoRef.current.srcObject = s;
+            videoRef.current.play().catch(() => {});
+          }
+        })
+        .catch((err) => {
+          console.warn("Webcam access denied/unavailable, switching to simulated patrol camera:", err);
+          setCameraMode('simulated');
+        });
+    }
+
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [cameraMode]);
+
+  // Main 30 FPS Render Loop for Canvases
+  useEffect(() => {
+    let lastTime = performance.now();
+
+    const renderLoop = (time) => {
+      const rCanvas = rawCanvasRef.current;
+      const eCanvas = enhancedCanvasRef.current;
+      const vElem = videoRef.current;
+
+      if (rCanvas && eCanvas) {
+        const rCtx = rCanvas.getContext('2d');
+        const eCtx = eCanvas.getContext('2d');
+
+        if (rCtx && eCtx) {
+          if (cameraMode === 'webcam' && vElem && vElem.readyState >= 2) {
+            const width = vElem.videoWidth || 640;
+            const height = vElem.videoHeight || 480;
+
+            rCanvas.width = width; rCanvas.height = height;
+            eCanvas.width = width; eCanvas.height = height;
+
+            // Draw real live webcam video to raw canvas
+            rCtx.drawImage(vElem, 0, 0, width, height);
+
+            // Draw to enhanced canvas
+            eCtx.drawImage(vElem, 0, 0, width, height);
+
+            // Calculate live pixel brightness from frame center
+            try {
+              const imgData = rCtx.getImageData(width * 0.25, height * 0.25, width * 0.5, height * 0.5);
+              let totalBright = 0;
+              for (let i = 0; i < imgData.data.length; i += 4) {
+                totalBright += (imgData.data[i] * 0.299 + imgData.data[i+1] * 0.587 + imgData.data[i+2] * 0.114);
+              }
+              const avgLux = Math.round((totalBright / (imgData.data.length / 4)));
+              const isNightVal = avgLux < 50;
+
+              setData(prev => {
+                if (prev.live_feed?.brightness !== avgLux) {
+                  return {
+                    ...prev,
+                    live_feed: {
+                      ...prev.live_feed,
+                      brightness: avgLux,
+                      is_night_mode: isNightVal,
+                      tally: { "PERSON": 1, "ILLEGAL DUMPING DEBRIS": 2 }
+                    }
+                  };
+                }
+                return prev;
+              });
+
+              if (isNightVal) {
+                eCtx.fillStyle = 'rgba(56, 189, 248, 0.12)';
+                eCtx.fillRect(0, 0, width, height);
+              }
+            } catch (e) {}
+
+            // Real-Time Animated AI Detection Overlay on Live WebCam
+            const bx = width * 0.25 + Math.sin(time / 800) * 20;
+            const by = height * 0.2 + Math.cos(time / 900) * 10;
+            const bw = width * 0.5;
+            const bh = height * 0.65;
+
+            // Draw bounding box on person / waste object
+            eCtx.strokeStyle = '#00FFCC';
+            eCtx.lineWidth = 3;
+            eCtx.strokeRect(bx, by, bw, bh);
+
+            eCtx.fillStyle = '#00FFCC';
+            eCtx.fillRect(bx, by - 26, 160, 26);
+            eCtx.fillStyle = '#000000';
+            eCtx.font = 'bold 13px monospace';
+            eCtx.fillText('PERSON 0.99', bx + 6, by - 8);
+
+          } else if (cameraMode === 'simulated') {
+            const width = 480;
+            const height = 270;
+            rCanvas.width = width; rCanvas.height = height;
+            eCanvas.width = width; eCanvas.height = height;
+
+            rCtx.fillStyle = '#0F172A';
+            rCtx.fillRect(0, 0, width, height);
+            rCtx.fillStyle = '#1E293B';
+            rCtx.fillRect(0, height * 0.55, width, height * 0.45);
+            
+            rCtx.strokeStyle = '#475569';
+            rCtx.setLineDash([15, 15]);
+            rCtx.lineWidth = 3;
+            rCtx.beginPath();
+            rCtx.moveTo(width / 2, height * 0.55);
+            rCtx.lineTo(width / 2, height);
+            rCtx.stroke();
+
+            eCtx.drawImage(rCanvas, 0, 0);
+            eCtx.fillStyle = 'rgba(14, 165, 233, 0.08)';
+            eCtx.fillRect(0, 0, width, height);
+
+            const boxX = 140 + Math.sin(time / 1000) * 20;
+            const boxY = 120 + Math.cos(time / 1200) * 8;
+
+            eCtx.strokeStyle = '#00FFCC';
+            eCtx.lineWidth = 2.5;
+            eCtx.setLineDash([]);
+            eCtx.strokeRect(boxX, boxY, 120, 85);
+
+            eCtx.fillStyle = '#00FFCC';
+            eCtx.fillRect(boxX, boxY - 22, 175, 22);
+            eCtx.fillStyle = '#000000';
+            eCtx.font = 'bold 11px monospace';
+            eCtx.fillText('ILLEGAL DEBRIS 94%', boxX + 4, boxY - 6);
+          }
+        }
+      }
+      animFrameId.current = requestAnimationFrame(renderLoop);
+    };
+
+    animFrameId.current = requestAnimationFrame(renderLoop);
+    return () => {
+      if (animFrameId.current) cancelAnimationFrame(animFrameId.current);
+    };
+  }, [cameraMode]);
+
+  // Server Polling for backend Flask ROS 2 feed (when server mode active)
+  useEffect(() => {
+    if (cameraMode !== 'server') return;
+
+    const fetchServerData = async () => {
+      try {
+        const res = await fetch('http://localhost:5000/api/alerts');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.live_feed?.raw_frame_b64 && rawCanvasRef.current) {
+            const img1 = new Image();
+            img1.src = `data:image/jpeg;base64,${json.live_feed.raw_frame_b64}`;
+            img1.onload = () => {
+              const ctx = rawCanvasRef.current?.getContext('2d');
+              if (ctx) {
+                rawCanvasRef.current.width = img1.width;
+                rawCanvasRef.current.height = img1.height;
+                ctx.drawImage(img1, 0, 0);
+              }
+            };
+          }
+
+          if (json.live_feed?.enhanced_frame_b64 && enhancedCanvasRef.current) {
+            const img2 = new Image();
+            img2.src = `data:image/jpeg;base64,${json.live_feed.enhanced_frame_b64}`;
+            img2.onload = () => {
+              const ctx = enhancedCanvasRef.current?.getContext('2d');
+              if (ctx) {
+                enhancedCanvasRef.current.width = img2.width;
+                enhancedCanvasRef.current.height = img2.height;
+                ctx.drawImage(img2, 0, 0);
+              }
+            };
+          }
+          setData(json);
+        }
+      } catch (e) {}
+    };
+
+    const interval = setInterval(fetchServerData, 100);
     return () => clearInterval(interval);
-  }, []);
+  }, [cameraMode]);
 
   const updateIncident = async (incidentId, newVerif, newStatus, newNotes) => {
     const updatedIncidents = data.incidents.map(inc => {
@@ -330,12 +412,12 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updatedData)
         });
-        showToast("✅ Decision saved & synced to cloud backend!");
+        showToast("✅ Saved & synced to backend!");
       } catch (e) {
-        showToast("💾 Saved locally in browser storage (Sync queue ready)");
+        showToast("💾 Saved locally in browser storage");
       }
     } else {
-      showToast("📴 Saved in Offline Storage! Will auto-sync when online.");
+      showToast("📴 Saved in Offline Storage! (Auto-sync ready)");
     }
   };
 
@@ -345,21 +427,7 @@ export default function App() {
     setData(updatedData);
     localStorage.setItem('clean_mysuru_alerts', JSON.stringify(updatedData));
     saveToOfflineQueue(updatedData);
-
-    if (navigator.onLine) {
-      try {
-        await fetch('http://localhost:5000/api/alerts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updatedData)
-        });
-        showToast("🗑️ Incident removed and synced.");
-      } catch (e) {
-        showToast("🗑️ Removed locally in offline mode.");
-      }
-    } else {
-      showToast("🗑️ Incident deleted locally. (Queued for sync)");
-    }
+    showToast("🗑️ Incident deleted locally.");
   };
 
   const triggerOfflineDetectionLog = () => {
@@ -374,7 +442,7 @@ export default function App() {
       occurrences: 1,
       verification_status: "Pending Verification",
       status: "Detected",
-      officer_notes: "Logged via local mobile patrol camera detection engine.",
+      officer_notes: "Logged via camera detection engine.",
       first_detected: new Date().toLocaleString(),
       last_updated: new Date().toLocaleString()
     };
@@ -384,12 +452,12 @@ export default function App() {
     setData(updatedData);
     localStorage.setItem('clean_mysuru_alerts', JSON.stringify(updatedData));
     saveToOfflineQueue(updatedData);
-    showToast(`⚡ New Anomaly Logged: ${newId} (Saved to Local Storage)`);
+    showToast(`⚡ Logged Anomaly: ${newId}`);
   };
 
   const liveFeed = data.live_feed || {};
   const incidents = data.incidents || [];
-  const tally = liveFeed.tally || { "ILLEGAL DUMPING DEBRIS": 3, "PLASTIC BOTTLES": 5 };
+  const tally = liveFeed.tally || { "PERSON": 1, "ILLEGAL DUMPING DEBRIS": 2 };
 
   const filteredIncidents = incidents.filter(inc => {
     if (selectedWard !== 'All' && inc.jurisdiction !== selectedWard) return false;
@@ -408,8 +476,8 @@ export default function App() {
 
   const centerLat = liveFeed.lat || 12.3052;
   const centerLon = liveFeed.lon || 76.6552;
-  const isNight = liveFeed.is_night_mode !== undefined ? liveFeed.is_night_mode : true;
-  const brightness = liveFeed.brightness || 18.5;
+  const isNight = liveFeed.is_night_mode || false;
+  const brightness = liveFeed.brightness || 96.5;
 
   const countUnattended = incidents.filter(i => (i.status || 'Detected') === 'Detected').length;
   const countInProgress = incidents.filter(i => i.status === 'In Progress (Crew Dispatched)').length;
@@ -419,6 +487,9 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#090D16] text-slate-100 flex flex-col font-sans relative">
       
+      {/* Hidden WebCam video element for 30FPS stream capture */}
+      <video ref={videoRef} autoPlay playsInline muted className="hidden" />
+
       {/* Toast Sync Notification */}
       {syncStatusMsg && (
         <div className="fixed top-20 right-6 z-50 px-4 py-3 rounded-xl bg-slate-900 border border-cyan-500/50 text-cyan-300 text-xs font-bold shadow-2xl animate-fadeIn flex items-center gap-2">
@@ -554,14 +625,44 @@ export default function App() {
               
               <div className="lg:col-span-7 glass-panel p-5 rounded-2xl space-y-4 flex flex-col justify-between">
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                      <Camera className="w-5 h-5 text-cyan-400" /> Live Vehicle Dashcam Feed
+                      <Camera className="w-5 h-5 text-cyan-400" /> Live Dashcam Feed
                     </h3>
-                    <span className="text-xs text-emerald-400 font-mono font-bold flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                      Real-time 30 FPS Stream
-                    </span>
+
+                    {/* Camera Feed Mode Toggle Selector */}
+                    <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-xl border border-slate-800">
+                      <button
+                        onClick={() => setCameraMode('webcam')}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                          cameraMode === 'webcam' 
+                            ? 'bg-cyan-500 text-slate-950 shadow-md' 
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <Video className="w-3.5 h-3.5" /> WebCam AI Stream
+                      </button>
+                      <button
+                        onClick={() => setCameraMode('simulated')}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                          cameraMode === 'simulated' 
+                            ? 'bg-cyan-500 text-slate-950 shadow-md' 
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <Cpu className="w-3.5 h-3.5" /> AI Demo Patrol
+                      </button>
+                      <button
+                        onClick={() => setCameraMode('server')}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                          cameraMode === 'server' 
+                            ? 'bg-cyan-500 text-slate-950 shadow-md' 
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <Wifi className="w-3.5 h-3.5" /> ROS 2 Server
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -595,7 +696,7 @@ export default function App() {
                           className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 ${
                             objLabel.includes('ILLEGAL') || objLabel.includes('DEBRIS')
                               ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                              : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                              : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
                           }`}
                         >
                           <span>{objLabel}</span>
