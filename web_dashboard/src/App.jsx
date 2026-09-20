@@ -85,7 +85,8 @@ export default function App() {
   const [selectedWard, setSelectedWard] = useState('All');
   const [minUrgency, setMinUrgency] = useState(0);
   const [verifFilter, setVerifFilter] = useState('All');
-  const [workflowTab, setWorkflowTab] = useState('All'); // 3 Workflow Tabs: 'All', 'Detected', 'In Progress', 'Resolved'
+  const [workflowTab, setWorkflowTab] = useState('Unattended'); // Admin tabs: 'Unattended', 'In Progress', 'Resolved'
+  const [publicTab, setPublicTab] = useState('Unresolved'); // Public tabs: 'Unresolved', 'Resolved'
   const [searchQuery, setSearchQuery] = useState('');
 
   const rawCanvasRef = React.useRef(null);
@@ -209,10 +210,13 @@ export default function App() {
     if ((inc.urgency_score || 0) < minUrgency) return false;
     if (verifFilter !== 'All' && inc.verification_status !== verifFilter) return false;
     
-    // Workflow Tabs filtering
-    if (workflowTab === 'Unattended' && (inc.status || 'Detected') !== 'Detected') return false;
-    if (workflowTab === 'In Progress' && (inc.status || 'Detected') !== 'In Progress (Crew Dispatched)') return false;
-    if (workflowTab === 'Resolved' && (inc.status || 'Detected') !== 'Resolved (Cleaned)') return false;
+    const incStatus = inc.status || 'Detected';
+    
+    // Strict Admin Workflow Tab filtering: 'Active Operational' excludes Resolved
+    if (workflowTab === 'Active Operational' && incStatus === 'Resolved (Cleaned)') return false;
+    if (workflowTab === 'Unattended' && incStatus !== 'Detected') return false;
+    if (workflowTab === 'In Progress' && incStatus !== 'In Progress (Crew Dispatched)') return false;
+    if (workflowTab === 'Resolved' && incStatus !== 'Resolved (Cleaned)') return false;
     
     if (searchQuery && !inc.incident_id.toLowerCase().includes(searchQuery.toLowerCase()) && !inc.jurisdiction.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
@@ -226,6 +230,7 @@ export default function App() {
   const countUnattended = incidents.filter(i => (i.status || 'Detected') === 'Detected').length;
   const countInProgress = incidents.filter(i => i.status === 'In Progress (Crew Dispatched)').length;
   const countResolved = incidents.filter(i => i.status === 'Resolved (Cleaned)').length;
+  const countActiveOperational = countUnattended + countInProgress;
 
   return (
     <div className="min-h-screen bg-[#090D16] text-slate-100 flex flex-col font-sans">
@@ -473,18 +478,18 @@ export default function App() {
         {activeTab === 'detections' && (
           <div className="space-y-6 animate-fadeIn">
             
-            {/* 3 WORKFLOW STATUS TABS (UNATTENDED / IN PROGRESS / RESOLVED) */}
+            {/* WORKFLOW STATUS TABS (ACTIVE OPERATIONAL / UNATTENDED / IN PROGRESS / RESOLVED) */}
             <div className="glass-panel p-2 rounded-2xl flex flex-wrap items-center justify-between gap-2 border border-slate-800">
               <div className="flex items-center gap-2 p-1 bg-slate-950/80 rounded-xl border border-slate-800 flex-1 flex-wrap">
                 <button
-                  onClick={() => setWorkflowTab('All')}
+                  onClick={() => setWorkflowTab('Active Operational')}
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all ${
-                    workflowTab === 'All'
+                    workflowTab === 'Active Operational'
                       ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  All Incidents ({incidents.length})
+                  Active Operational ({countActiveOperational})
                 </button>
 
                 <button
@@ -523,7 +528,7 @@ export default function App() {
                       : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10'
                   }`}
                 >
-                  <CheckCircle2 className="w-4 h-4" /> Resolved (Cleaned)
+                  <CheckCircle2 className="w-4 h-4" /> Resolved Archive
                   <span className="px-2 py-0.5 rounded-full bg-slate-950 text-emerald-300 font-extrabold text-[11px]">
                     {countResolved}
                   </span>
@@ -815,103 +820,124 @@ export default function App() {
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">Live transparent view of all city detections and current resolution statuses.</p>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="px-3 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold">
-                  Total Logged: {incidents.length}
-                </span>
+
+              {/* 2 PUBLIC TABS: UNRESOLVED VS RESOLVED */}
+              <div className="flex items-center gap-2 p-1 bg-slate-950/80 rounded-xl border border-slate-800">
+                <button
+                  onClick={() => setPublicTab('Unresolved')}
+                  className={`flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-bold transition-all ${
+                    publicTab === 'Unresolved'
+                      ? 'bg-rose-500 text-white shadow-md shadow-rose-500/25'
+                      : 'text-rose-400 hover:text-white'
+                  }`}
+                >
+                  <AlertTriangle className="w-4 h-4" /> Unresolved ({countActiveOperational})
+                </button>
+                <button
+                  onClick={() => setPublicTab('Resolved')}
+                  className={`flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-bold transition-all ${
+                    publicTab === 'Resolved'
+                      ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/25 font-black'
+                      : 'text-emerald-400 hover:text-white'
+                  }`}
+                >
+                  <CheckCircle2 className="w-4 h-4" /> Resolved ({countResolved})
+                </button>
               </div>
             </div>
 
-            {incidents.length > 0 ? (
+            {incidents.filter(i => publicTab === 'Resolved' ? i.status === 'Resolved (Cleaned)' : i.status !== 'Resolved (Cleaned)').length > 0 ? (
               <div className="space-y-6">
-                {incidents.map((inc, idx) => {
-                  const iid = inc.incident_id;
-                  const vStatus = inc.verification_status || 'Pending Verification';
-                  const status = inc.status || 'Detected';
-                  const proof3 = inc.proof_bbox_b64 || inc.enhanced_frame_b64;
+                {incidents
+                  .filter(i => publicTab === 'Resolved' ? i.status === 'Resolved (Cleaned)' : i.status !== 'Resolved (Cleaned)')
+                  .map((inc, idx) => {
+                    const iid = inc.incident_id;
+                    const vStatus = inc.verification_status || 'Pending Verification';
+                    const status = inc.status || 'Detected';
+                    const proof3 = inc.proof_bbox_b64 || inc.enhanced_frame_b64;
 
-                  return (
-                    <div key={idx} className="glass-panel p-6 rounded-2xl space-y-4">
-                      {/* Header */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-                        <div className="flex items-center gap-3">
-                          <h3 className="text-lg font-extrabold text-white">{iid}</h3>
-                          <span className="px-3 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-semibold">
-                            {inc.jurisdiction}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`px-3 py-1 rounded-xl text-xs font-bold ${
-                            status === 'Resolved (Cleaned)' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                            status === 'In Progress (Crew Dispatched)' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                            'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                          }`}>
-                            {status}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Meta */}
-                      <div className="text-xs text-slate-400 flex flex-wrap gap-4">
-                        <div><b>First Detected:</b> {inc.first_detected}</div>
-                        <div><b>Last Updated:</b> {inc.last_updated}</div>
-                        <div><b>Authenticity:</b> <span className="text-cyan-300 font-semibold">{vStatus}</span></div>
-                        {inc.officer_notes && <div><b>Action Note:</b> <span className="text-slate-200 italic">{inc.officer_notes}</span></div>}
-                      </div>
-
-                      {/* Read-Only Image & Map side-by-side */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1.5 flex flex-col">
-                          <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                            <Camera className="w-4 h-4 text-cyan-400" /> Detection Snapshot
-                          </span>
-                          <div className="flex-1 aspect-video min-h-[220px] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 relative">
-                            {proof3 ? (
-                              <img src={`data:image/jpeg;base64,${proof3}`} alt="Detection Snapshot" className="w-full h-full object-cover" />
-                            ) : (
-                              <span className="text-xs text-slate-600 p-4 block">No image</span>
-                            )}
+                    return (
+                      <div key={idx} className="glass-panel p-6 rounded-2xl space-y-4">
+                        {/* Header */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                          <div className="flex items-center gap-3">
+                            <h3 className="text-lg font-extrabold text-white">{iid}</h3>
+                            <span className="px-3 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-semibold">
+                              {inc.jurisdiction}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-3 py-1 rounded-xl text-xs font-bold ${
+                              status === 'Resolved (Cleaned)' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                              status === 'In Progress (Crew Dispatched)' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                              'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                            }`}>
+                              {status}
+                            </span>
                           </div>
                         </div>
 
-                        <div className="space-y-1.5 flex flex-col">
-                          <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                            <MapPin className="w-4 h-4 text-rose-400" /> Location Map
-                          </span>
-                          <div className="flex-1 aspect-video min-h-[220px] rounded-xl overflow-hidden border border-slate-800 relative z-0">
-                            <MapContainer 
-                              center={[inc.lat || centerLat, inc.lon || centerLon]} 
-                              zoom={15} 
-                              scrollWheelZoom={true} 
-                              style={{ height: '100%', width: '100%' }}
-                            >
-                              <MapResizer center={`${inc.lat || centerLat}_${inc.lon || centerLon}`} />
-                              <TileLayer
-                                attribution='&copy; OpenStreetMap'
-                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                              />
-                              <Marker 
-                                position={[inc.lat || centerLat, inc.lon || centerLon]}
-                                icon={(inc.urgency_score || 0) >= 30 ? redIcon : orangeIcon}
+                        {/* Meta */}
+                        <div className="text-xs text-slate-400 flex flex-wrap gap-4">
+                          <div><b>First Detected:</b> {inc.first_detected}</div>
+                          <div><b>Last Updated:</b> {inc.last_updated}</div>
+                          <div><b>Authenticity:</b> <span className="text-cyan-300 font-semibold">{vStatus}</span></div>
+                          {inc.officer_notes && <div><b>Action Note:</b> <span className="text-slate-200 italic">{inc.officer_notes}</span></div>}
+                        </div>
+
+                        {/* Read-Only Image & Map side-by-side */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1.5 flex flex-col">
+                            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                              <Camera className="w-4 h-4 text-cyan-400" /> Detection Snapshot
+                            </span>
+                            <div className="flex-1 aspect-video min-h-[220px] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 relative">
+                              {proof3 ? (
+                                <img src={`data:image/jpeg;base64,${proof3}`} alt="Detection Snapshot" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-xs text-slate-600 p-4 block">No image</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5 flex flex-col">
+                            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                              <MapPin className="w-4 h-4 text-rose-400" /> Location Map
+                            </span>
+                            <div className="flex-1 aspect-video min-h-[220px] rounded-xl overflow-hidden border border-slate-800 relative z-0">
+                              <MapContainer 
+                                center={[inc.lat || centerLat, inc.lon || centerLon]} 
+                                zoom={15} 
+                                scrollWheelZoom={true} 
+                                style={{ height: '100%', width: '100%' }}
                               >
-                                <Popup>
-                                  <div className="text-xs font-sans text-slate-900 font-bold">
-                                    {iid} - {inc.jurisdiction}
-                                  </div>
-                                </Popup>
-                              </Marker>
-                            </MapContainer>
+                                <MapResizer center={`${inc.lat || centerLat}_${inc.lon || centerLon}`} />
+                                <TileLayer
+                                  attribution='&copy; OpenStreetMap'
+                                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                />
+                                <Marker 
+                                  position={[inc.lat || centerLat, inc.lon || centerLon]}
+                                  icon={(inc.urgency_score || 0) >= 30 ? redIcon : orangeIcon}
+                                >
+                                  <Popup>
+                                    <div className="text-xs font-sans text-slate-900 font-bold">
+                                      {iid} - {inc.jurisdiction}
+                                    </div>
+                                  </Popup>
+                                </Marker>
+                              </MapContainer>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                    </div>
-                  );
-                })}
+                      </div>
+                    );
+                  })}
               </div>
             ) : (
               <div className="glass-panel p-12 text-center rounded-2xl text-slate-400 text-sm">
-                No active detections logged.
+                No {publicTab.toLowerCase()} detections logged.
               </div>
             )}
           </div>
