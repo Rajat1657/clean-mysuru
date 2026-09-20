@@ -121,7 +121,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('live');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncStatusMsg, setSyncStatusMsg] = useState(null);
-  const [cameraMode, setCameraMode] = useState('simulated'); // Default to simulated so video always shows instantly!
+  const [cameraMode, setCameraMode] = useState('webcam'); // Default to user's real camera feed
 
   const [data, setData] = useState(() => {
     const cached = localStorage.getItem('clean_mysuru_alerts');
