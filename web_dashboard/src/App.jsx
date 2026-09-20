@@ -33,7 +33,6 @@ const MysorePalaceLogo = () => (
   </svg>
 );
 
-// Inline Vector Leaflet Icons for 100% Offline Support
 const createSvgMarker = (color) => L.divIcon({
   className: 'custom-leaflet-marker',
   html: `<svg width="30" height="42" viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -69,7 +68,7 @@ const DEFAULT_INITIAL_DATA = {
     jurisdiction: "Ward 14 (Devaraja Market)",
     is_night_mode: false,
     brightness: 115.0,
-    tally: { "ILLEGAL DUMPING DEBRIS": 3, "PLASTIC BOTTLES": 5, "STREET LITTER": 2 }
+    tally: { "PERSON": 1, "ILLEGAL DUMPING DEBRIS": 2 }
   },
   incidents: [
     {
@@ -121,7 +120,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('live');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncStatusMsg, setSyncStatusMsg] = useState(null);
-  const [cameraMode, setCameraMode] = useState('webcam'); // Default to user's real camera feed
+  const [cameraMode, setCameraMode] = useState('webcam');
+  const [webcamActive, setWebcamActive] = useState(false);
 
   const [data, setData] = useState(() => {
     const cached = localStorage.getItem('clean_mysuru_alerts');
@@ -192,19 +192,21 @@ export default function App() {
     } catch (e) {}
   };
 
-  // WebCam Setup
-  const startWebcamStream = () => {
-    if (navigator.mediaDevices?.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then((s) => {
-          if (videoRef.current) {
-            videoRef.current.srcObject = s;
-            videoRef.current.play().catch(() => {});
-          }
-        })
-        .catch((err) => {
-          console.warn("Webcam permission pending or blocked:", err);
-        });
+  // WebCam Stream Starter
+  const startWebcamStream = async () => {
+    try {
+      if (navigator.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+          setWebcamActive(true);
+          showToast("📹 WebCam Live Stream Connected!");
+        }
+      }
+    } catch (err) {
+      console.warn("Webcam permission denied or pending:", err);
+      setWebcamActive(false);
     }
   };
 
@@ -213,7 +215,6 @@ export default function App() {
       startWebcamStream();
     }
   }, [cameraMode]);
-
 
   // Main 30 FPS Render Loop for Canvases
   useEffect(() => {
@@ -233,7 +234,7 @@ export default function App() {
             rCanvas.width = width; rCanvas.height = height;
             eCanvas.width = width; eCanvas.height = height;
 
-            if (vElem && vElem.readyState >= 2) {
+            if (vElem && vElem.readyState >= 2 && vElem.currentTime > 0) {
               rCtx.drawImage(vElem, 0, 0, width, height);
               eCtx.drawImage(vElem, 0, 0, width, height);
 
@@ -256,45 +257,40 @@ export default function App() {
               rCtx.fillRect(0, 0, width, height);
               rCtx.fillStyle = '#38BDF8';
               rCtx.font = 'bold 14px sans-serif';
-              rCtx.fillText('📹 Connecting to Camera Stream...', width * 0.2, height * 0.5);
+              rCtx.fillText('📹 Requesting Camera Access...', width * 0.2, height * 0.45);
+              rCtx.fillStyle = '#94A3B8';
+              rCtx.font = '12px sans-serif';
+              rCtx.fillText('Click "Allow" in browser address bar', width * 0.2, height * 0.55);
 
               eCtx.fillStyle = '#090D16';
               eCtx.fillRect(0, 0, width, height);
               eCtx.fillStyle = '#00FFCC';
               eCtx.font = 'bold 14px sans-serif';
-              eCtx.fillText('🤖 AI Camera Initializing...', width * 0.2, height * 0.5);
+              eCtx.fillText('🤖 AI Smart Vision Ready...', width * 0.2, height * 0.45);
             }
           } else if (cameraMode === 'simulated') {
-            // High-Resolution Animated City Patrol Video Feed Simulation
-
             const width = 640;
             const height = 360;
             rCanvas.width = width; rCanvas.height = height;
             eCanvas.width = width; eCanvas.height = height;
 
-            // Sky background gradient
             const skyGrad = rCtx.createLinearGradient(0, 0, 0, height * 0.5);
             skyGrad.addColorStop(0, '#0F172A');
             skyGrad.addColorStop(1, '#1E293B');
             rCtx.fillStyle = skyGrad;
             rCtx.fillRect(0, 0, width, height * 0.5);
 
-            // City skyline building silhouettes
             rCtx.fillStyle = '#090D16';
             for (let i = 0; i < width; i += 40) {
               const h = 40 + (i % 70);
               rCtx.fillRect(i, height * 0.5 - h, 35, h);
             }
 
-            // Road & Sidewalk
             rCtx.fillStyle = '#1E293B';
             rCtx.fillRect(0, height * 0.5, width, height * 0.5);
-
-            // Sidewalk curb
             rCtx.fillStyle = '#334155';
             rCtx.fillRect(0, height * 0.5, width, 12);
 
-            // Perspective Road Lane Lines (Moving forward)
             const laneOffset = (time / 15) % 40;
             rCtx.strokeStyle = '#FACC15';
             rCtx.setLineDash([20, 20]);
@@ -305,7 +301,6 @@ export default function App() {
             rCtx.lineTo(width / 2, height);
             rCtx.stroke();
 
-            // Draw Waste Heap / Garbage Pile on Sidewalk
             const heapX = 180 + Math.sin(time / 1500) * 10;
             const heapY = height * 0.58;
 
@@ -319,14 +314,10 @@ export default function App() {
             rCtx.fillStyle = '#1E40AF';
             rCtx.fillRect(heapX + 45, heapY + 5, 25, 20);
 
-            // Copy to enhanced feed canvas
             eCtx.drawImage(rCanvas, 0, 0);
-
-            // AI Enhancement Overlay Shader
             eCtx.fillStyle = 'rgba(14, 165, 233, 0.08)';
             eCtx.fillRect(0, 0, width, height);
 
-            // Bounding Box 1: Illegal Garbage Dumping
             eCtx.strokeStyle = '#00FFCC';
             eCtx.lineWidth = 3;
             eCtx.setLineDash([]);
@@ -338,7 +329,6 @@ export default function App() {
             eCtx.font = 'bold 12px monospace';
             eCtx.fillText('ILLEGAL DEBRIS 94%', heapX + 6, heapY - 18);
 
-            // Bounding Box 2: Plastic Litter
             const box2X = heapX + 110;
             const box2Y = heapY + 15;
             eCtx.strokeStyle = '#F43F5E';
@@ -351,7 +341,6 @@ export default function App() {
             eCtx.font = 'bold 11px monospace';
             eCtx.fillText('PLASTIC BOTTLES 88%', box2X + 4, box2Y - 6);
 
-            // Telemetry Overlay Stamp
             eCtx.fillStyle = 'rgba(15, 23, 42, 0.75)';
             eCtx.fillRect(10, 10, 220, 24);
             eCtx.fillStyle = '#38BDF8';
@@ -486,7 +475,7 @@ export default function App() {
 
   const liveFeed = data.live_feed || {};
   const incidents = data.incidents || [];
-  const tally = liveFeed.tally || { "ILLEGAL DUMPING DEBRIS": 3, "PLASTIC BOTTLES": 5 };
+  const tally = liveFeed.tally || { "PERSON": 1, "ILLEGAL DUMPING DEBRIS": 2 };
 
   const filteredIncidents = incidents.filter(inc => {
     if (selectedWard !== 'All' && inc.jurisdiction !== selectedWard) return false;
@@ -516,7 +505,14 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#090D16] text-slate-100 flex flex-col font-sans relative">
       
-      <video ref={videoRef} autoPlay playsInline muted className="hidden" />
+      {/* Offscreen unhidden Video element so browser decodes video frames 100% reliably */}
+      <video 
+        ref={videoRef} 
+        autoPlay 
+        playsInline 
+        muted 
+        style={{ position: 'absolute', top: '-9999px', left: '-9999px', width: '640px', height: '480px', opacity: 0.001, pointerEvents: 'none' }} 
+      />
 
       {/* Toast Sync Notification */}
       {syncStatusMsg && (
@@ -660,6 +656,16 @@ export default function App() {
 
                     <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-xl border border-slate-800">
                       <button
+                        onClick={() => { setCameraMode('webcam'); startWebcamStream(); }}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                          cameraMode === 'webcam' 
+                            ? 'bg-cyan-500 text-slate-950 shadow-md' 
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <Video className="w-3.5 h-3.5" /> WebCam Stream
+                      </button>
+                      <button
                         onClick={() => setCameraMode('simulated')}
                         className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
                           cameraMode === 'simulated' 
@@ -668,16 +674,6 @@ export default function App() {
                         }`}
                       >
                         <Cpu className="w-3.5 h-3.5" /> AI Demo Patrol
-                      </button>
-                      <button
-                        onClick={() => setCameraMode('webcam')}
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                          cameraMode === 'webcam' 
-                            ? 'bg-cyan-500 text-slate-950 shadow-md' 
-                            : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        <Video className="w-3.5 h-3.5" /> WebCam Stream
                       </button>
                       <button
                         onClick={() => setCameraMode('server')}
@@ -694,7 +690,17 @@ export default function App() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <span className="text-xs font-semibold text-slate-400">Standard Dashcam Feed</span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-slate-400">Standard Dashcam Feed</span>
+                        {cameraMode === 'webcam' && (
+                          <button
+                            onClick={startWebcamStream}
+                            className="text-[11px] text-cyan-400 font-bold hover:underline flex items-center gap-1"
+                          >
+                            <RefreshCw className="w-3 h-3" /> Start Camera
+                          </button>
+                        )}
+                      </div>
                       <div className="aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center relative shadow-inner">
                         <canvas ref={rawCanvasRef} className="w-full h-full object-cover" />
                       </div>
@@ -1208,7 +1214,7 @@ export default function App() {
                             <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                               <MapPin className="w-4 h-4 text-rose-400" /> Location Map
                             </span>
-                            <div className="flex-1 aspect-video min-h-[200px] rounded-xl overflow-hidden border border-slate-800 relative z-0">
+                            <div className="flex-1 aspect-video min-h-[220px] rounded-xl overflow-hidden border border-slate-800 relative z-0">
                               <MapContainer 
                                 center={[inc.lat || centerLat, inc.lon || centerLon]} 
                                 zoom={15} 
