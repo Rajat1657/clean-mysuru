@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   ShieldAlert, Activity, Eye, MapPin, Sliders, CheckCircle2, 
   XCircle, Clock, AlertTriangle, Cpu, Camera, RefreshCw, 
-  Filter, Search, Layers, FileText, ChevronRight, Check
+  Filter, Search, Layers, FileText, ChevronRight, Check, Save
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -72,8 +72,15 @@ function MapResizer({ center }) {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('live');
-  const [data, setData] = useState({ live_feed: {}, incidents: [] });
+  const [data, setData] = useState(() => {
+    const cached = localStorage.getItem('clean_mysuru_alerts');
+    if (cached) {
+      try { return JSON.parse(cached); } catch (e) {}
+    }
+    return { live_feed: {}, incidents: [] };
+  });
   const [loading, setLoading] = useState(true);
+  const [savedIncidentId, setSavedIncidentId] = useState(null);
 
   const [selectedWard, setSelectedWard] = useState('All');
   const [minUrgency, setMinUrgency] = useState(0);
@@ -87,6 +94,7 @@ export default function App() {
       if (res.ok) {
         const json = await res.json();
         setData(json);
+        localStorage.setItem('clean_mysuru_alerts', JSON.stringify(json));
       }
     } catch (e) {
       // connecting
@@ -116,6 +124,10 @@ export default function App() {
 
     const updatedData = { ...data, incidents: updatedIncidents };
     setData(updatedData);
+    localStorage.setItem('clean_mysuru_alerts', JSON.stringify(updatedData));
+
+    setSavedIncidentId(incidentId);
+    setTimeout(() => setSavedIncidentId(null), 2500);
 
     try {
       await fetch('http://localhost:5000/api/alerts', {
@@ -546,7 +558,29 @@ export default function App() {
 
                       {/* Official Verification & Workflow Action Controls */}
                       <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-4">
-                        <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Official Action & Verification Controls</span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Official Action & Verification Controls</span>
+                          
+                          {/* SAVE BUTTON FOR INDIVIDUAL / ALL INCIDENT CHANGES */}
+                          <button
+                            onClick={() => updateIncident(iid, vStatus, status, inc.officer_notes || '')}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-lg ${
+                              savedIncidentId === iid 
+                                ? 'bg-emerald-500 text-slate-950 shadow-emerald-500/30' 
+                                : 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500 shadow-cyan-500/20'
+                            }`}
+                          >
+                            {savedIncidentId === iid ? (
+                              <>
+                                <Check className="w-4 h-4" /> Saved locally & synced!
+                              </>
+                            ) : (
+                              <>
+                                <Save className="w-4 h-4" /> Save Detection Decision
+                              </>
+                            )}
+                          </button>
+                        </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           
